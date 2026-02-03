@@ -12,7 +12,7 @@ In many parts of Ghana, like Kumasi, unreliable internet shouldn't stop a busine
 - **Architecture:** Local-First with Background Synchronization
 
 ## 📊 System Architecture (ERD)
-![System ERD](./docs/erd_diagram.png)
+![System ERD](./docs/ERD_diagram.png)
 *Note: The system utilizes a dual-ledger approach to track Input VAT (Imports) vs. Output VAT (Sales) and includes a specialized module for "Yield Reconciliation" to detect inventory leakage.*
 
 ## ✨ Key Features
