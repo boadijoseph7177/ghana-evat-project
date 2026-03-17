@@ -28,6 +28,8 @@ func main() {
 	})
 
 	http.HandleFunc("/production", productionHandler.RecordProduction)
+	http.HandleFunc("/products", productionHandler.GetProducts)
+	http.HandleFunc("/bulk-tanks", productionHandler.GetBulkTanks)
 
 	fmt.Println("Backend running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

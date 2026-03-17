@@ -56,3 +56,11 @@ func (s *ProductionService) RecordProduction(req models.CreateProductionRequest)
 
 	return variance, status, nil
 }
+
+func (s *ProductionService) GetProducts() ([]models.Product, error) {
+	return s.Repo.GetAllProducts()
+}
+
+func (s *ProductionService) GetBulkTanks() ([]models.BulkTank, error) {
+	return s.Repo.GetAllBulkTanks()
+}

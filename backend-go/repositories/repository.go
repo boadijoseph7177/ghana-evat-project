@@ -3,6 +3,8 @@ package repositories
 import (
 	"database/sql"
 	"fmt"
+
+	"evat-backend/backend-go/models"
 )
 
 type ProductionRepository struct {
@@ -101,4 +103,72 @@ func (r *ProductionRepository) GetProductByID(productID int) (float64, error) {
 	}
 
 	return bottleSize, nil
+}
+
+func (r *ProductionRepository) GetAllProducts() ([]models.Product, error) {
+	rows, err := r.DB.Query(`
+		SELECT id, name, bottle_size_liters, stock_quantity, unit_price
+		FROM products
+		ORDER BY id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var products []models.Product
+
+	for rows.Next() {
+		var p models.Product
+		err := rows.Scan(
+			&p.ID,
+			&p.Name,
+			&p.BottleSizeLiters,
+			&p.StockQuantity,
+			&p.UnitPrice,
+		)
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}
+
+func (r *ProductionRepository) GetAllBulkTanks() ([]models.BulkTank, error) {
+	rows, err := r.DB.Query(`
+		SELECT id, name, current_liters
+		FROM bulk_tanks
+		ORDER BY id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tanks []models.BulkTank
+
+	for rows.Next() {
+		var t models.BulkTank
+		err := rows.Scan(
+			&t.ID,
+			&t.Name,
+			&t.CurrentLiters,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tanks = append(tanks, t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tanks, nil
 }
