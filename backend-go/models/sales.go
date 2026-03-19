@@ -6,6 +6,7 @@ type CreateSaleRequest struct {
 	ProductID    int    `json:"product_id"`
 	Quantity     int    `json:"quantity"`
 	CustomerName string `json:"customer_name"`
+	CustomerTIN  string `json:"customer_tin"`
 }
 
 type SaleResponse struct {
@@ -19,10 +20,10 @@ type SaleResponse struct {
 	GETFundAmount float64 `json:"getfund_amount"`
 	TotalWithTax  float64 `json:"total_with_tax"`
 	CustomerName  string  `json:"customer_name"`
+	CustomerTIN   string  `json:"customer_tin"`
 	SDCID         string  `json:"sdc_id"`
 	QRCode        string  `json:"qr_code"`
 }
-
 type SaleRecord struct {
 	ID            int       `json:"id"`
 	ProductID     int       `json:"product_id"`
@@ -43,4 +44,20 @@ type VATSummary struct {
 	TotalNHIL    float64 `json:"total_nhil"`
 	TotalGETFund float64 `json:"total_getfund"`
 	TotalWithTax float64 `json:"total_with_tax"`
+}
+
+type GRAIssueInvoiceRequest struct {
+	InvoiceID   string  `json:"invoice_id"`
+	BaseAmount  float64 `json:"base_amount"`
+	CustomerTIN string  `json:"customer_tin"`
+}
+
+type GRAIssueInvoiceResponse struct {
+	InvoiceID     string  `json:"invoice_id"`
+	VATAmount     float64 `json:"vat_amount"`
+	NHILAmount    float64 `json:"nhil_amount"`
+	GETFundAmount float64 `json:"getfund_amount"`
+	TotalWithTax  float64 `json:"total_with_tax"`
+	SDCID         string  `json:"sdc_id"`
+	QRCode        string  `json:"qr_code"`
 }

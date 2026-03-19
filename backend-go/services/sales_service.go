@@ -4,8 +4,11 @@
 package services
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"time"
 
 	"evat-backend/backend-go/models"
@@ -21,6 +24,40 @@ func NewSalesService(repo *repositories.SalesRepository) *SalesService {
 	return &SalesService{Repo: repo}
 }
 
+func (s *SalesService) issueInvoiceWithMockGRA(req models.GRAIssueInvoiceRequest) (models.GRAIssueInvoiceResponse, error) {
+	var graRes models.GRAIssueInvoiceResponse
+
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		return graRes, err
+	}
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Post(
+		"http://localhost:8081/issue-invoice",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return graRes, fmt.Errorf("failed to call mock GRA API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return graRes, fmt.Errorf("mock GRA API returned status %d", resp.StatusCode)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&graRes)
+	if err != nil {
+		return graRes, err
+	}
+
+	return graRes, nil
+}
+
 func (s *SalesService) RecordSale(req models.CreateSaleRequest) (models.SaleResponse, error) {
 	if req.ProductID <= 0 {
 		return models.SaleResponse{}, fmt.Errorf("invalid product_id")
@@ -29,7 +66,6 @@ func (s *SalesService) RecordSale(req models.CreateSaleRequest) (models.SaleResp
 		return models.SaleResponse{}, fmt.Errorf("quantity must be greater than 0")
 	}
 
-	//pre-sale inventory check...price and stock
 	unitPrice, stockQuantity, err := s.Repo.GetProductForSale(req.ProductID)
 	if err != nil {
 		return models.SaleResponse{}, err
@@ -39,12 +75,18 @@ func (s *SalesService) RecordSale(req models.CreateSaleRequest) (models.SaleResp
 		return models.SaleResponse{}, fmt.Errorf("insufficient stock")
 	}
 
-	//E-VAT math
 	totalAmount := float64(req.Quantity) * unitPrice
-	vatAmount := totalAmount * 0.15
-	nhilAmount := totalAmount * 0.025
-	getfundAmount := totalAmount * 0.025
-	totalWithTax := totalAmount + vatAmount + nhilAmount + getfundAmount
+
+	graReq := models.GRAIssueInvoiceRequest{
+		InvoiceID:   fmt.Sprintf("SALE-%d-%d", req.ProductID, time.Now().Unix()),
+		BaseAmount:  totalAmount,
+		CustomerTIN: req.CustomerTIN,
+	}
+
+	graRes, err := s.issueInvoiceWithMockGRA(graReq)
+	if err != nil {
+		return models.SaleResponse{}, err
+	}
 
 	err = s.Repo.ProcessSale(
 		req.ProductID,
@@ -52,18 +94,14 @@ func (s *SalesService) RecordSale(req models.CreateSaleRequest) (models.SaleResp
 		req.CustomerName,
 		unitPrice,
 		totalAmount,
-		vatAmount,
-		nhilAmount,
-		getfundAmount,
-		totalWithTax,
+		graRes.VATAmount,
+		graRes.NHILAmount,
+		graRes.GETFundAmount,
+		graRes.TotalWithTax,
 	)
 	if err != nil {
 		return models.SaleResponse{}, err
 	}
-
-	time.Now().UnixNano()
-
-	sdcID := generateSDCID()
 
 	return models.SaleResponse{
 		Message:       "sale completed successfully",
@@ -71,13 +109,14 @@ func (s *SalesService) RecordSale(req models.CreateSaleRequest) (models.SaleResp
 		Quantity:      req.Quantity,
 		UnitPrice:     unitPrice,
 		TotalAmount:   totalAmount,
-		VATAmount:     vatAmount,
-		NHILAmount:    nhilAmount,
-		GETFundAmount: getfundAmount,
-		TotalWithTax:  totalWithTax,
+		VATAmount:     graRes.VATAmount,
+		NHILAmount:    graRes.NHILAmount,
+		GETFundAmount: graRes.GETFundAmount,
+		TotalWithTax:  graRes.TotalWithTax,
 		CustomerName:  req.CustomerName,
-		SDCID:         sdcID,
-		QRCode:        fmt.Sprintf("https://gra.gov.gh/verify/%s", sdcID),
+		CustomerTIN:   req.CustomerTIN,
+		SDCID:         graRes.SDCID,
+		QRCode:        graRes.QRCode,
 	}, nil
 }
 
