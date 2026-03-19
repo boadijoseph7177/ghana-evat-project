@@ -3,6 +3,8 @@ package repositories
 import (
 	"database/sql"
 	"fmt"
+
+	"evat-backend/backend-go/models"
 )
 
 type SalesRepository struct {
@@ -97,4 +99,72 @@ func (r *SalesRepository) ProcessSale(
 	}
 
 	return tx.Commit()
+}
+
+func (r *SalesRepository) GetAllSales() ([]models.SaleRecord, error) {
+	rows, err := r.DB.Query(`
+		SELECT id, product_id, quantity, unit_price, total_amount,
+		       vat_amount, nhil_amount, getfund_amount,
+		       total_with_tax, customer_name, created_at
+		FROM sales
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sales []models.SaleRecord
+
+	for rows.Next() {
+		var s models.SaleRecord
+		err := rows.Scan(
+			&s.ID,
+			&s.ProductID,
+			&s.Quantity,
+			&s.UnitPrice,
+			&s.TotalAmount,
+			&s.VATAmount,
+			&s.NHILAmount,
+			&s.GETFundAmount,
+			&s.TotalWithTax,
+			&s.CustomerName,
+			&s.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		sales = append(sales, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return sales, nil
+}
+
+func (r *SalesRepository) GetVATSummary() (models.VATSummary, error) {
+	var summary models.VATSummary
+
+	err := r.DB.QueryRow(`
+		SELECT
+			COALESCE(SUM(total_amount), 0),
+			COALESCE(SUM(vat_amount), 0),
+			COALESCE(SUM(nhil_amount), 0),
+			COALESCE(SUM(getfund_amount), 0),
+			COALESCE(SUM(total_with_tax), 0)
+		FROM sales
+	`).Scan(
+		&summary.TotalSales,
+		&summary.TotalVAT,
+		&summary.TotalNHIL,
+		&summary.TotalGETFund,
+		&summary.TotalWithTax,
+	)
+	if err != nil {
+		return summary, err
+	}
+
+	return summary, nil
 }
