@@ -7,15 +7,17 @@ const (
 	RoleAgent = "agent"
 )
 
-func AuthMiddleware(requiredRole string, next http.HandlerFunc) http.HandlerFunc {
+func AuthMiddleware(allowedRoles []string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userRole := r.Header.Get("X-User_Role")
+		userRole := r.Header.Get("X-User-Role")
 
-		// Admins can do everything: agents are restricted
-		if userRole != requiredRole && userRole != RoleAdmin {
-			http.Error(w, "Forbidden: You do not have permission to perform this action", http.StatusForbidden)
-			return
+		for _, role := range allowedRoles {
+			if userRole == role {
+				next(w, r)
+				return
+			}
 		}
-		next(w, r)
+
+		http.Error(w, "Forbidden", http.StatusForbidden)
 	}
 }

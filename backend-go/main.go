@@ -7,6 +7,7 @@ import (
 
 	"evat-backend/backend-go/db"
 	"evat-backend/backend-go/handlers"
+	"evat-backend/backend-go/middleware"
 	"evat-backend/backend-go/repositories"
 	"evat-backend/backend-go/services"
 )
@@ -22,6 +23,7 @@ func main() {
 	productionRepo := repositories.NewProductionRepository(dbConn)
 	productionService := services.NewProductionService(productionRepo)
 	productionHandler := handlers.NewProductionHandler(productionService)
+
 	salesRepo := repositories.NewSalesRepository(dbConn)
 	salesService := services.NewSalesService(salesRepo)
 	salesHandler := handlers.NewSalesHandler(salesService)
@@ -30,23 +32,60 @@ func main() {
 		fmt.Fprintln(w, "Backend is live")
 	})
 
-	http.HandleFunc("/production", productionHandler.RecordProduction)
-	http.HandleFunc("/products", productionHandler.GetProducts)
-	http.HandleFunc("/bulk-tanks", productionHandler.GetBulkTanks)
+	// Production routes: admin only
+	http.HandleFunc(
+		"/production",
+		middleware.AuthMiddleware([]string{middleware.RoleAdmin}, productionHandler.RecordProduction),
+	)
 
+	http.HandleFunc(
+		"/production-logs",
+		middleware.AuthMiddleware([]string{middleware.RoleAdmin}, productionHandler.GetProductionLogs),
+	)
+
+	// Inventory read routes
+	http.HandleFunc(
+		"/products",
+		middleware.AuthMiddleware([]string{middleware.RoleAdmin, middleware.RoleAgent}, productionHandler.GetProducts),
+	)
+
+	http.HandleFunc(
+		"/bulk-tanks",
+		middleware.AuthMiddleware([]string{middleware.RoleAdmin}, productionHandler.GetBulkTanks),
+	)
+
+	// Sales routes
 	http.HandleFunc("/sales", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			salesHandler.RecordSale(w, r)
+			middleware.AuthMiddleware(
+				[]string{middleware.RoleAdmin, middleware.RoleAgent},
+				salesHandler.RecordSale,
+			)(w, r)
 			return
 		}
+
 		if r.Method == http.MethodGet {
-			salesHandler.GetSales(w, r)
+			middleware.AuthMiddleware(
+				[]string{middleware.RoleAdmin},
+				salesHandler.GetSales,
+			)(w, r)
 			return
 		}
+
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 
-	http.HandleFunc("/vat-summary", salesHandler.GetVATSummary)
+	// VAT summary: admin only
+	http.HandleFunc(
+		"/vat-summary",
+		middleware.AuthMiddleware([]string{middleware.RoleAdmin}, salesHandler.GetVATSummary),
+	)
+
+	// Dashboard summary: admin only
+	http.HandleFunc(
+		"/dashboard-summary",
+		middleware.AuthMiddleware([]string{middleware.RoleAdmin}, salesHandler.GetDashboardSummary),
+	)
 
 	fmt.Println("Backend running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

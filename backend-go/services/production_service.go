@@ -64,3 +64,7 @@ func (s *ProductionService) GetProducts() ([]models.Product, error) {
 func (s *ProductionService) GetBulkTanks() ([]models.BulkTank, error) {
 	return s.Repo.GetAllBulkTanks()
 }
+
+func (s *ProductionService) GetProductionLogs() ([]models.ProductionLog, error) {
+	return s.Repo.GetAllProductionLogs()
+}

@@ -172,3 +172,42 @@ func (r *ProductionRepository) GetAllBulkTanks() ([]models.BulkTank, error) {
 
 	return tanks, nil
 }
+
+func (r *ProductionRepository) GetAllProductionLogs() ([]models.ProductionLog, error) {
+	rows, err := r.DB.Query(`
+		SELECT id, tank_id, product_id, liters_used, bottles_produced,
+		       variance_percentage, status, created_at
+		FROM production_logs
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []models.ProductionLog
+
+	for rows.Next() {
+		var p models.ProductionLog
+		err := rows.Scan(
+			&p.ID,
+			&p.TankID,
+			&p.ProductID,
+			&p.LitersUsed,
+			&p.BottlesProduced,
+			&p.VariancePercentage,
+			&p.Status,
+			&p.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return logs, nil
+}

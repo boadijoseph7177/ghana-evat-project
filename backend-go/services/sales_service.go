@@ -136,3 +136,7 @@ func generateSDCID() string {
 func (s *SalesService) GetVATSummary() (models.VATSummary, error) {
 	return s.Repo.GetVATSummary()
 }
+
+func (s *SalesService) GetDashboardSummary() (models.DashboardSummary, error) {
+	return s.Repo.GetDashboardSummary()
+}

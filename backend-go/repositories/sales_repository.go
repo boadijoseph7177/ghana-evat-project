@@ -168,3 +168,30 @@ func (r *SalesRepository) GetVATSummary() (models.VATSummary, error) {
 
 	return summary, nil
 }
+
+func (r *SalesRepository) GetDashboardSummary() (models.DashboardSummary, error) {
+	var summary models.DashboardSummary
+
+	err := r.DB.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM products),
+			(SELECT COALESCE(SUM(stock_quantity), 0) FROM products),
+			(SELECT COUNT(*) FROM sales),
+			(SELECT COALESCE(SUM(total_amount), 0) FROM sales),
+			(SELECT COALESCE(SUM(vat_amount), 0) FROM sales),
+			(SELECT COUNT(*) FROM production_logs WHERE status = 'warning')
+	`).Scan(
+		&summary.TotalProducts,
+		&summary.TotalStockUnits,
+		&summary.TotalSalesCount,
+		&summary.TotalSalesAmount,
+		&summary.TotalVAT,
+		&summary.ProductionWarningsCount,
+	)
+
+	if err != nil {
+		return summary, err
+	}
+
+	return summary, nil
+}

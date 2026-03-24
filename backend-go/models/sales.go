@@ -61,3 +61,12 @@ type GRAIssueInvoiceResponse struct {
 	SDCID         string  `json:"sdc_id"`
 	QRCode        string  `json:"qr_code"`
 }
+
+type DashboardSummary struct {
+	TotalProducts           int     `json:"total_products"`
+	TotalStockUnits         int     `json:"total_stock_units"`
+	TotalSalesCount         int     `json:"total_sales_count"`
+	TotalSalesAmount        float64 `json:"total_sales_amount"`
+	TotalVAT                float64 `json:"total_vat"`
+	ProductionWarningsCount int     `json:"production_warnings_count"`
+}

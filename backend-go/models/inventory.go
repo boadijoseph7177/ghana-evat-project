@@ -22,6 +22,7 @@ type ProductionLog struct {
 	BottlesProduced    int     `json:"bottles_produced"`
 	VariancePercentage float64 `json:"variance_percentage"`
 	Status             string  `json:"status"`
+	CreatedAt          string  `json:"created_at"`
 }
 
 type CreateProductionRequest struct {
