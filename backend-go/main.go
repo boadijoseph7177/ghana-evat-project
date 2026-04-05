@@ -12,6 +12,21 @@ import (
 	"evat-backend/backend-go/services"
 )
 
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-User-Role")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	connStr := "host=localhost port=5433 user=postgres password=Bjoecr7 dbname=evat_db sslmode=disable"
 
@@ -88,5 +103,5 @@ func main() {
 	)
 
 	fmt.Println("Backend running on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", withCORS(http.DefaultServeMux)))
 }
