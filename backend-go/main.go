@@ -43,6 +43,10 @@ func main() {
 	salesService := services.NewSalesService(salesRepo)
 	salesHandler := handlers.NewSalesHandler(salesService)
 
+	allocationRepo := repositories.NewAllocationRepository(dbConn)
+	allocationService := services.NewAllocationService(allocationRepo)
+	allocationHandler := handlers.NewAllocationHandler(allocationService)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Backend is live")
 	})
@@ -100,6 +104,21 @@ func main() {
 	http.HandleFunc(
 		"/dashboard-summary",
 		middleware.AuthMiddleware([]string{middleware.RoleAdmin}, salesHandler.GetDashboardSummary),
+	)
+
+	http.HandleFunc(
+		"/allocations",
+		func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				middleware.AuthMiddleware([]string{middleware.RoleAdmin}, allocationHandler.CreateAllocation)(w, r)
+				return
+			}
+			if r.Method == http.MethodGet {
+				middleware.AuthMiddleware([]string{middleware.RoleAdmin, middleware.RoleAgent}, allocationHandler.GetAllocation)(w, r)
+				return
+			}
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		},
 	)
 
 	fmt.Println("Backend running on http://localhost:8080")
