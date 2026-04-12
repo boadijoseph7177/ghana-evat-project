@@ -86,23 +86,29 @@ func (r *ProductionRepository) ProcessProduction(
 	return tx.Commit()
 }
 
-func (r *ProductionRepository) GetProductByID(productID int) (float64, error) {
-	var bottleSize float64
-
-	err := r.DB.QueryRow(`
-		SELECT bottle_size_liters
+func (r *ProductionRepository) GetProductByID(productID int) (*models.Product, error) {
+	query := `
+		SELECT id, name, bottle_size_liters, stock_quantity, unit_price
 		FROM products
 		WHERE id = $1
-	`, productID).Scan(&bottleSize)
+	`
 
+	var product models.Product
+	err := r.DB.QueryRow(query, productID).Scan(
+		&product.ID,
+		&product.Name,
+		&product.BottleSizeLiters,
+		&product.StockQuantity,
+		&product.UnitPrice,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return 0, fmt.Errorf("product not found")
+			return nil, fmt.Errorf("product not found")
 		}
-		return 0, err
+		return nil, err
 	}
 
-	return bottleSize, nil
+	return &product, nil
 }
 
 func (r *ProductionRepository) GetAllProducts() ([]models.Product, error) {

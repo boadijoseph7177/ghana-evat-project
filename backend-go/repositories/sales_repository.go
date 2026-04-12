@@ -15,6 +15,23 @@ func NewSalesRepository(db *sql.DB) *SalesRepository {
 	return &SalesRepository{DB: db}
 }
 
+func (r *SalesRepository) OfflineSaleExists(offlineSaleID string) (bool, error) {
+	var exists bool
+
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM sales WHERE offline_sale_id = $1
+		)
+	`
+
+	err := r.DB.QueryRow(query, offlineSaleID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+
 func (r *SalesRepository) GetProductForSale(productID int) (float64, int, error) {
 	var unitPrice float64
 	var stockQuantity int

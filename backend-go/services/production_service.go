@@ -29,12 +29,12 @@ func (s *ProductionService) RecordProduction(req models.CreateProductionRequest)
 		return 0, "", fmt.Errorf("bottles_produced must be greater than 0")
 	}
 
-	bottleSizeLiters, err := s.Repo.GetProductByID(req.ProductID)
+	product, err := s.Repo.GetProductByID(req.ProductID)
 	if err != nil {
 		return 0, "", err
 	}
 
-	expectedLiters := float64(req.BottlesProduced) * bottleSizeLiters
+	expectedLiters := float64(req.BottlesProduced) * product.BottleSizeLiters
 	variance := ((req.LitersUsed - expectedLiters) / req.LitersUsed) * 100
 
 	status := "within_threshold"

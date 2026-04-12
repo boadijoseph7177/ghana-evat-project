@@ -47,6 +47,13 @@ func main() {
 	allocationService := services.NewAllocationService(allocationRepo)
 	allocationHandler := handlers.NewAllocationHandler(allocationService)
 
+	syncSalesService := services.NewSyncSalesService(
+		dbConn,
+		salesRepo,
+		allocationRepo,
+	)
+	syncSalesHandler := handlers.NewSyncSalesHandler(syncSalesService)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Backend is live")
 	})
@@ -93,6 +100,12 @@ func main() {
 
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
+
+	// Sync sales route (for offline sales from mobile app)
+	http.HandleFunc(
+		"/sync-sales",
+		middleware.AuthMiddleware([]string{middleware.RoleAdmin, middleware.RoleAgent}, syncSalesHandler.SyncSales),
+	)
 
 	// VAT summary: admin only
 	http.HandleFunc(

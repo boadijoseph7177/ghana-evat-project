@@ -105,3 +105,74 @@ func (r *AllocationRepository) GetActiveAllocationByAgent(agentName string) (mod
 	allocation.Items = items
 	return allocation, nil
 }
+
+type AllocationItemRecord struct {
+	ID                int
+	AllocationID      int
+	ProductID         int
+	AllocatedQuantity int
+	RemainingQuantity int
+}
+
+func (r *AllocationRepository) GetActiveAllocationItemByAgentAndProduct(agentName string, productID int) (*AllocationItemRecord, error) {
+	query := `
+		SELECT aai.id, aai.allocation_id, aai.product_id, aai.allocated_quantity, aai.remaining_quantity
+		FROM agent_allocation_items aai
+		INNER JOIN agent_allocations aa ON aa.id = aai.allocation_id
+		WHERE aa.agent_name = $1
+		  AND aa.status = 'active'
+		  AND aai.product_id = $2
+		ORDER BY aa.created_at DESC, aai.id DESC
+		LIMIT 1
+	`
+
+	var item AllocationItemRecord
+	err := r.DB.QueryRow(query, agentName, productID).Scan(
+		&item.ID,
+		&item.AllocationID,
+		&item.ProductID,
+		&item.AllocatedQuantity,
+		&item.RemainingQuantity,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("active allocation item not found for agent %s and product %d", agentName, productID)
+		}
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+func (r *AllocationRepository) ReduceRemainingAllocationTx(tx *sql.Tx, agentName string, productID int, quantity int) error {
+	result, err := tx.Exec(`
+		UPDATE agent_allocation_items
+		SET remaining_quantity = remaining_quantity - $1
+		WHERE id = (
+			SELECT aai.id
+			FROM agent_allocation_items aai
+			INNER JOIN agent_allocations aa ON aa.id = aai.allocation_id
+			WHERE aa.agent_name = $2
+			  AND aa.status = 'active'
+			  AND aai.product_id = $3
+			  AND aai.remaining_quantity >= $1
+			ORDER BY aa.created_at DESC, aai.id DESC
+			LIMIT 1
+		)
+	`, quantity, agentName, productID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("insufficient remaining allocation or allocation not found")
+	}
+
+	return nil
+}

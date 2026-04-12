@@ -70,3 +70,20 @@ type DashboardSummary struct {
 	TotalVAT                float64 `json:"total_vat"`
 	ProductionWarningsCount int     `json:"production_warnings_count"`
 }
+
+type SyncSaleItemRequest struct {
+	OfflineSaleID string `json:"offline_sale_id"`
+	ProductID     int    `json:"product_id"`
+	Quantity      int    `json:"quantity"`
+	CustomerName  string `json:"customer_name"`
+	CustomerTIN   string `json:"customer_tin"`
+}
+
+type SyncSalesRequest struct {
+	AgentName string                `json:"agent_name"`
+	Sales     []SyncSaleItemRequest `json:"sales"`
+}
+
+type SyncSalesResponse struct {
+	Message string `json:"message"`
+}
