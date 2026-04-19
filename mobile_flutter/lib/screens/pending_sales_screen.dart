@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/pending_sale.dart';
 import '../services/api_service.dart';
 import '../services/local_db_service.dart';
+import '../widgets/empty_state_widget.dart';
+import '../widgets/error_state_widget.dart';
 
 class PendingSalesScreen extends StatefulWidget {
   const PendingSalesScreen({super.key});
@@ -110,13 +112,26 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
                   }
 
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                    return ErrorStateWidget(
+                      message:
+                          'Could not load pending sales. Please try again.',
+                      onRetry: () {
+                        setState(() {
+                          loadPendingSales();
+                        });
+                      },
+                    );
                   }
 
                   final sales = snapshot.data ?? [];
 
                   if (sales.isEmpty) {
-                    return const Center(child: Text('No pending sales'));
+                    return const EmptyStateWidget(
+                      icon: Icons.sync_outlined,
+                      title: 'No pending sales',
+                      subtitle:
+                          'Offline sales waiting to sync will appear here.',
+                    );
                   }
 
                   return ListView.builder(

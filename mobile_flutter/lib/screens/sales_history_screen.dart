@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-
 import '../models/sale_record.dart';
 import '../services/api_service.dart';
+import 'package:intl/intl.dart';
+import 'sale_detail_screen.dart';
+import '../widgets/error_state_widget.dart';
+import '../widgets/empty_state_widget.dart';
 
 class SalesHistoryScreen extends StatefulWidget {
   const SalesHistoryScreen({super.key});
@@ -29,6 +32,11 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     return amount.toStringAsFixed(2);
   }
 
+  String formatDate(String rawDate) {
+    final dateTime = DateTime.parse(rawDate).toLocal();
+    return DateFormat('MMM d, yyyy • h:mm a').format(dateTime);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,13 +49,24 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return ErrorStateWidget(
+              message: snapshot.error.toString(),
+              onRetry: () {
+                setState(() {
+                  loadSales();
+                });
+              },
+            );
           }
 
           final sales = snapshot.data ?? [];
 
           if (sales.isEmpty) {
-            return const Center(child: Text('No sales found'));
+            return const EmptyStateWidget(
+              icon: Icons.receipt_long_outlined,
+              title: 'No sales found',
+              subtitle: 'Completed sales will appear here.',
+            );
           }
 
           return RefreshIndicator(
@@ -72,13 +91,21 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                     subtitle: Text(
                       '${sale.productName} • Qty: ${sale.quantity}\n'
                       'Total: GHS ${formatMoney(sale.totalWithTax)}\n'
-                      'Date: ${sale.createdAt}',
+                      'Date: ${formatDate(sale.createdAt)}',
                     ),
                     isThreeLine: true,
                     trailing: Text(
                       'GHS ${formatMoney(sale.totalWithTax)}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SaleDetailScreen(sale: sale),
+                        ),
+                      );
+                    },
                   ),
                 );
               },

@@ -7,6 +7,8 @@ import 'dashboard_summary_screen.dart';
 import 'pending_sales_screen.dart';
 import 'sale_screen.dart';
 import 'sales_history_screen.dart';
+import '../widgets/error_state_widget.dart';
+import '../widgets/empty_state_widget.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -154,66 +156,102 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<Product>>(
-        future: productsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final products = snapshot.data ?? [];
-
-          if (products.isEmpty) {
-            return Center(
-              child: Text(
-                _isOfflineMode
-                    ? 'No offline products available'
-                    : 'No products found',
+      body: Column(
+        children: [
+          if (_isOfflineMode)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade100,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              child: Row(
+                children: const [
+                  Icon(Icons.warning_amber, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Offline mode: showing allocated stock',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
               ),
-            );
-          }
+            ),
+          Expanded(
+            child: FutureBuilder<List<Product>>(
+              future: productsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          return ListView.builder(
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: ListTile(
-                  title: Text(product.name),
-                  subtitle: Text(
-                    '${product.bottleSizeLiters}L • Stock: ${product.stockQuantity} • Price: GHS ${product.unitPrice}',
-                  ),
-                  trailing: ElevatedButton(
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SaleScreen(product: product),
-                        ),
-                      );
-
-                      if (result == 'online_success' ||
-                          result == 'offline_saved') {
-                        setState(() {
-                          loadProducts();
-                        });
-
-                        await loadPendingSalesCount();
-                      }
+                if (snapshot.hasError) {
+                  return ErrorStateWidget(
+                    message: 'Could not load products. Please try again.',
+                    onRetry: () {
+                      setState(() {
+                        loadProducts();
+                      });
                     },
-                    child: const Text('Sell'),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                  );
+                }
+
+                final products = snapshot.data ?? [];
+
+                if (products.isEmpty) {
+                  return EmptyStateWidget(
+                    icon: Icons.inventory_2_outlined,
+                    title: _isOfflineMode
+                        ? 'No offline products available'
+                        : 'No products found',
+                    subtitle: _isOfflineMode
+                        ? 'Download allocation while online to view products offline.'
+                        : 'There are no products to display right now.',
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      child: ListTile(
+                        title: Text(product.name),
+                        subtitle: Text(
+                          '${product.bottleSizeLiters}L • Stock: ${product.stockQuantity} • Price: GHS ${product.unitPrice}',
+                        ),
+                        trailing: ElevatedButton(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SaleScreen(product: product),
+                              ),
+                            );
+
+                            if (result == 'online_success' ||
+                                result == 'offline_saved') {
+                              setState(() {
+                                loadProducts();
+                              });
+
+                              await loadPendingSalesCount();
+                            }
+                          },
+                          child: const Text('Sell'),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
