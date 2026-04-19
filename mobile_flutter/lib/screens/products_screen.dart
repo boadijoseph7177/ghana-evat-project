@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import '../services/local_db_service.dart';
+import 'dashboard_summary_screen.dart';
 import 'pending_sales_screen.dart';
 import 'sale_screen.dart';
 import 'sales_history_screen.dart';
-import 'dashboard_summary_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -35,6 +35,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
     productsFuture = loadProductsWithFallback();
   }
 
+  Future<List<Product>> loadProductsWithFallback() async {
+    try {
+      final products = await apiService.getProducts();
+      await localDbService.saveProducts(products);
+      _isOfflineMode = false;
+      return products;
+    } catch (e) {
+      final offlineProducts = await localDbService.getOfflineProducts();
+      _isOfflineMode = true;
+      return offlineProducts;
+    }
+  }
+
   Future<void> downloadAllocation() async {
     try {
       final allocation = await apiService.getAllocation(agentName);
@@ -54,17 +67,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  Future<List<Product>> loadProductsWithFallback() async {
-    try {
-      final products = await apiService.getProducts();
-      await localDbService.saveProducts(products);
-      _isOfflineMode = false;
-      return products;
-    } catch (e) {
-      final offlineProducts = await localDbService.getOfflineProducts();
-      _isOfflineMode = true;
-      return offlineProducts;
-    }
+  Future<void> loadPendingSalesCount() async {
+    final pendingSales = await localDbService.getPendingSales();
+
+    if (!mounted) return;
+
+    setState(() {
+      _pendingSalesCount = pendingSales.length;
+    });
   }
 
   Future<void> openPendingSales() async {
@@ -90,16 +100,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  Future<void> loadPendingSalesCount() async {
-    final pendingSales = await localDbService.getPendingSales();
-
-    if (!mounted) return;
-
-    setState(() {
-      _pendingSalesCount = pendingSales.length;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -110,7 +110,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
             icon: const Icon(Icons.download),
             onPressed: downloadAllocation,
           ),
-          IconButton(icon: const Icon(Icons.sync), onPressed: openPendingSales),
           IconButton(
             onPressed: openPendingSales,
             icon: Stack(
@@ -144,6 +143,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
               ],
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: openSalesHistory,
           ),
           IconButton(
             icon: const Icon(Icons.dashboard),

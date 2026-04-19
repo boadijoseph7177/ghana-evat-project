@@ -27,6 +27,7 @@ type SaleResponse struct {
 type SaleRecord struct {
 	ID            int       `json:"id"`
 	ProductID     int       `json:"product_id"`
+	ProductName   string    `json:"product_name"`
 	Quantity      int       `json:"quantity"`
 	UnitPrice     float64   `json:"unit_price"`
 	TotalAmount   float64   `json:"total_amount"`

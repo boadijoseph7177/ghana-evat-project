@@ -1,6 +1,7 @@
 class SaleRecord {
   final int id;
   final int productId;
+  final String productName;
   final int quantity;
   final double unitPrice;
   final double totalAmount;
@@ -14,6 +15,7 @@ class SaleRecord {
   SaleRecord({
     required this.id,
     required this.productId,
+    required this.productName,
     required this.quantity,
     required this.unitPrice,
     required this.totalAmount,
@@ -29,6 +31,7 @@ class SaleRecord {
     return SaleRecord(
       id: json['id'],
       productId: json['product_id'],
+      productName: json['product_name'],
       quantity: json['quantity'],
       unitPrice: (json['unit_price'] as num).toDouble(),
       totalAmount: (json['total_amount'] as num).toDouble(),

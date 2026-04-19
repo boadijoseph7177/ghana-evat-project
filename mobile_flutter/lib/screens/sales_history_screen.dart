@@ -70,7 +70,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                   child: ListTile(
                     title: Text(sale.customerName),
                     subtitle: Text(
-                      'Product ID: ${sale.productId} • Qty: ${sale.quantity}\n'
+                      '${sale.productName} • Qty: ${sale.quantity}\n'
                       'Total: GHS ${formatMoney(sale.totalWithTax)}\n'
                       'Date: ${sale.createdAt}',
                     ),

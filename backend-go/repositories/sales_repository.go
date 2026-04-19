@@ -120,11 +120,22 @@ func (r *SalesRepository) ProcessSale(
 
 func (r *SalesRepository) GetAllSales() ([]models.SaleRecord, error) {
 	rows, err := r.DB.Query(`
-		SELECT id, product_id, quantity, unit_price, total_amount,
-		       vat_amount, nhil_amount, getfund_amount,
-		       total_with_tax, customer_name, created_at
-		FROM sales
-		ORDER BY created_at DESC
+		SELECT 
+			s.id,
+			s.product_id,
+			p.name,
+			s.quantity,
+			s.unit_price,
+			s.total_amount,
+			s.vat_amount,
+			s.nhil_amount,
+			s.getfund_amount,
+			s.total_with_tax,
+			s.customer_name,
+			s.created_at
+		FROM sales s
+		INNER JOIN products p ON s.product_id = p.id
+		ORDER BY s.created_at DESC
 	`)
 	if err != nil {
 		return nil, err
@@ -138,6 +149,7 @@ func (r *SalesRepository) GetAllSales() ([]models.SaleRecord, error) {
 		err := rows.Scan(
 			&s.ID,
 			&s.ProductID,
+			&s.ProductName,
 			&s.Quantity,
 			&s.UnitPrice,
 			&s.TotalAmount,
@@ -160,7 +172,6 @@ func (r *SalesRepository) GetAllSales() ([]models.SaleRecord, error) {
 
 	return sales, nil
 }
-
 func (r *SalesRepository) GetVATSummary() (models.VATSummary, error) {
 	var summary models.VATSummary
 
