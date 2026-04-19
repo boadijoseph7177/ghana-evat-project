@@ -1,0 +1,224 @@
+import 'package:flutter/material.dart';
+
+import '../models/pending_sale.dart';
+import '../models/product.dart';
+import '../models/sale_request.dart';
+import '../models/sale_response.dart';
+import '../services/api_service.dart';
+import '../services/local_db_service.dart';
+import 'receipt_screen.dart';
+
+class SaleScreen extends StatefulWidget {
+  final Product product;
+
+  const SaleScreen({super.key, required this.product});
+
+  @override
+  State<SaleScreen> createState() => _SaleScreenState();
+}
+
+class _SaleScreenState extends State<SaleScreen> {
+  final ApiService apiService = ApiService();
+  final LocalDbService localDbService = LocalDbService();
+
+  final TextEditingController quantityController = TextEditingController();
+  final TextEditingController customerNameController = TextEditingController();
+  final TextEditingController customerTinController = TextEditingController();
+
+  final String agentName = 'agent1';
+
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocalDb();
+  }
+
+  Future<void> _initLocalDb() async {
+    try {
+      await localDbService.database;
+    } catch (e) {
+      debugPrint('Local DB init failed: $e');
+    }
+  }
+
+  Future<bool> canSellOffline(int productId, int quantity) async {
+    final allocationItem = await localDbService.getAllocationItemByProductId(
+      productId,
+    );
+
+    if (allocationItem == null) {
+      return false;
+    }
+
+    return allocationItem.remainingQuantity >= quantity;
+  }
+
+  Future<void> submitSale() async {
+    final quantity = int.tryParse(quantityController.text);
+
+    if (quantity == null || quantity <= 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a valid quantity')));
+      return;
+    }
+
+    if (quantity > widget.product.stockQuantity) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quantity exceeds available stock')),
+      );
+      return;
+    }
+
+    if (customerNameController.text.trim().isEmpty ||
+        customerTinController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Customer name and TIN are required')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final saleRequest = SaleRequest(
+        productId: widget.product.id,
+        quantity: quantity,
+        customerName: customerNameController.text.trim(),
+        customerTin: customerTinController.text.trim(),
+      );
+
+      final SaleResponse response = await apiService.createSale(saleRequest);
+
+      if (!mounted) return;
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ReceiptScreen(response: response)),
+      );
+
+      if (!mounted) return;
+
+      Navigator.pop(context, 'online_success');
+    } catch (e) {
+      debugPrint('Online sale failed: $e');
+
+      final allowed = await canSellOffline(widget.product.id, quantity);
+      debugPrint('Can sell offline: $allowed');
+
+      if (!allowed) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offline sale exceeds remaining allocation'),
+          ),
+        );
+        return;
+      }
+
+      final pendingSale = PendingSale(
+        offlineSaleId: DateTime.now().millisecondsSinceEpoch.toString(),
+        agentName: agentName,
+        productId: widget.product.id,
+        quantity: quantity,
+        customerName: customerNameController.text.trim(),
+        customerTin: customerTinController.text.trim(),
+        status: 'pending',
+        createdAt: DateTime.now().toIso8601String(),
+      );
+
+      await localDbService.insertPendingSale(pendingSale);
+      await localDbService.reduceRemainingAllocation(
+        widget.product.id,
+        quantity,
+      );
+
+      debugPrint('Pending sale saved');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sale saved offline as pending')),
+      );
+
+      Navigator.pop(context, 'offline_saved');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    quantityController.dispose();
+    customerNameController.dispose();
+    customerTinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Sell ${widget.product.name}')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text('Price: GHS ${widget.product.unitPrice}'),
+            Text('Available Stock: ${widget.product.stockQuantity}'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Quantity',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: customerNameController,
+              decoration: const InputDecoration(
+                labelText: 'Customer Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: customerTinController,
+              decoration: const InputDecoration(
+                labelText: 'Customer TIN',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : submitSale,
+                child: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Submit Sale'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
