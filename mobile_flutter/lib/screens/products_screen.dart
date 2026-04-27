@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import '../services/local_db_service.dart';
+import '../widgets/empty_state_widget.dart';
+import '../widgets/error_state_widget.dart';
+import 'allocation_screen.dart';
 import 'dashboard_summary_screen.dart';
 import 'pending_sales_screen.dart';
 import 'sale_screen.dart';
 import 'sales_history_screen.dart';
-import '../widgets/error_state_widget.dart';
-import '../widgets/empty_state_widget.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -41,13 +42,36 @@ class _ProductsScreenState extends State<ProductsScreen> {
     try {
       final products = await apiService.getProducts();
       await localDbService.saveProducts(products);
-      _isOfflineMode = false;
+
+      if (mounted && _isOfflineMode) {
+        setState(() {
+          _isOfflineMode = false;
+        });
+      } else {
+        _isOfflineMode = false;
+      }
+
       return products;
     } catch (e) {
       final offlineProducts = await localDbService.getOfflineProducts();
-      _isOfflineMode = true;
+
+      if (mounted && !_isOfflineMode) {
+        setState(() {
+          _isOfflineMode = true;
+        });
+      } else {
+        _isOfflineMode = true;
+      }
+
       return offlineProducts;
     }
+  }
+
+  Future<void> openAllocationScreen() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AllocationScreen()),
+    );
   }
 
   Future<void> downloadAllocation() async {
@@ -60,6 +84,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Allocation downloaded successfully')),
       );
+
+      setState(() {
+        loadProducts();
+      });
     } catch (e) {
       if (!mounted) return;
 
@@ -113,6 +141,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
             onPressed: downloadAllocation,
           ),
           IconButton(
+            icon: const Icon(Icons.inventory),
+            onPressed: openAllocationScreen,
+          ),
+          IconButton(
             onPressed: openPendingSales,
             icon: Stack(
               clipBehavior: Clip.none,
@@ -163,8 +195,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
               width: double.infinity,
               color: Colors.orange.shade100,
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              child: Row(
-                children: const [
+              child: const Row(
+                children: [
                   Icon(Icons.warning_amber, color: Colors.orange),
                   SizedBox(width: 8),
                   Expanded(

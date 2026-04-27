@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../models/product.dart';
@@ -11,7 +12,13 @@ import '../models/dashboard_summary.dart';
 
 class ApiService {
   // For Chrome (web)
-  static const String baseUrl = 'http://localhost:8080';
+  static String get baseUrl {
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8080';
+    }
+
+    return 'http://localhost:8080';
+  }
 
   // Common headers
   static const Map<String, String> baseHeaders = {
