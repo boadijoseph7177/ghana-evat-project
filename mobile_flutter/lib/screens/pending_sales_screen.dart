@@ -23,6 +23,8 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
 
   late Future<List<PendingSale>> pendingSalesFuture;
   bool isSyncing = false;
+  bool _isOnline = true;
+  bool _isCheckingConnection = false;
 
   String formatDate(String rawDate) {
     if (rawDate.trim().isEmpty) return 'Unknown date';
@@ -47,10 +49,35 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
   void initState() {
     super.initState();
     loadPendingSales();
+    _refreshConnectionStatus();
   }
 
   void loadPendingSales() {
     pendingSalesFuture = localDbService.getPendingSales();
+  }
+
+  Future<void> _refreshConnectionStatus() async {
+    if (_isCheckingConnection) return;
+
+    setState(() {
+      _isCheckingConnection = true;
+    });
+
+    try {
+      final reachable = await apiService.isBackendReachable();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isOnline = reachable;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingConnection = false;
+        });
+      }
+    }
   }
 
   Future<void> syncSales() async {
@@ -107,7 +134,9 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
       setState(() {
         loadPendingSales();
       });
+      await _refreshConnectionStatus();
     } catch (e) {
+      await _refreshConnectionStatus();
       if (!mounted) return;
 
       ScaffoldMessenger.of(
@@ -153,6 +182,61 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
                     Text(
                       'Sales saved offline stay here until you sync them successfully.',
                       style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isOnline
+                                ? Colors.green.shade50
+                                : Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _isOnline
+                                    ? Icons.cloud_done_rounded
+                                    : Icons.cloud_off_rounded,
+                                size: 16,
+                                color: _isOnline
+                                    ? Colors.green.shade700
+                                    : Colors.orange.shade800,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _isOnline ? 'Online mode' : 'Offline mode',
+                                style: TextStyle(
+                                  color: _isOnline
+                                      ? Colors.green.shade800
+                                      : Colors.orange.shade900,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'Check connection',
+                          onPressed: _isCheckingConnection
+                              ? null
+                              : _refreshConnectionStatus,
+                          icon: _isCheckingConnection
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.refresh_rounded),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
