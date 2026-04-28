@@ -37,6 +37,8 @@ type SaleRecord struct {
 	TotalWithTax  float64   `json:"total_with_tax"`
 	CustomerName  string    `json:"customer_name"`
 	CreatedAt     time.Time `json:"created_at"`
+	SDCID         string    `json:"sdc_id"`
+	QRCode        string    `json:"qr_code"`
 }
 
 type VATSummary struct {
