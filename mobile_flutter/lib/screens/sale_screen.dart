@@ -31,6 +31,8 @@ class _SaleScreenState extends State<SaleScreen> {
   final String agentName = 'agent1';
 
   bool isLoading = false;
+  bool _isOnline = true;
+  bool _isCheckingConnection = false;
 
   String formatMoney(double amount) {
     final formatter = NumberFormat.currency(
@@ -52,6 +54,7 @@ class _SaleScreenState extends State<SaleScreen> {
   void initState() {
     super.initState();
     _initLocalDb();
+    _refreshConnectionStatus();
   }
 
   Future<void> _initLocalDb() async {
@@ -59,6 +62,30 @@ class _SaleScreenState extends State<SaleScreen> {
       await localDbService.database;
     } catch (e) {
       debugPrint('Local DB init failed: $e');
+    }
+  }
+
+  Future<void> _refreshConnectionStatus() async {
+    if (_isCheckingConnection) return;
+
+    setState(() {
+      _isCheckingConnection = true;
+    });
+
+    try {
+      final reachable = await apiService.isBackendReachable();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isOnline = reachable;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingConnection = false;
+        });
+      }
     }
   }
 
@@ -204,6 +231,52 @@ class _SaleScreenState extends State<SaleScreen> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _isOnline ? Colors.green.shade50 : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                        size: 16,
+                        color: _isOnline ? Colors.green.shade700 : Colors.orange.shade800,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isOnline ? 'Online mode' : 'Offline mode',
+                        style: TextStyle(
+                          color:
+                              _isOnline ? Colors.green.shade800 : Colors.orange.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Check connection',
+                  onPressed: _isCheckingConnection ? null : _refreshConnectionStatus,
+                  icon: _isCheckingConnection
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),

@@ -26,6 +26,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   late Future<List<Product>> productsFuture;
   String agentName = 'agent1';
   bool _isOfflineMode = false;
+  bool _isOnline = true;
+  bool _isCheckingConnection = false;
   int _pendingSalesCount = 0;
 
   @override
@@ -33,6 +35,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     super.initState();
     loadProducts();
     loadPendingSalesCount();
+    _refreshConnectionStatus();
   }
 
   void loadProducts() {
@@ -52,6 +55,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
         _isOfflineMode = false;
       }
 
+      if (mounted && !_isOnline) {
+        setState(() {
+          _isOnline = true;
+        });
+      } else {
+        _isOnline = true;
+      }
+
       return products;
     } catch (e) {
       final offlineProducts = await localDbService.getOfflineProducts();
@@ -64,7 +75,39 @@ class _ProductsScreenState extends State<ProductsScreen> {
         _isOfflineMode = true;
       }
 
+      if (mounted && _isOnline) {
+        setState(() {
+          _isOnline = false;
+        });
+      } else {
+        _isOnline = false;
+      }
+
       return offlineProducts;
+    }
+  }
+
+  Future<void> _refreshConnectionStatus() async {
+    if (_isCheckingConnection) return;
+
+    setState(() {
+      _isCheckingConnection = true;
+    });
+
+    try {
+      final reachable = await apiService.isBackendReachable();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isOnline = reachable;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingConnection = false;
+        });
+      }
     }
   }
 
@@ -79,6 +122,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     try {
       final allocation = await apiService.getAllocation(agentName);
       await localDbService.saveAllocationItems(allocation.items);
+      await _refreshConnectionStatus();
 
       if (!mounted) return;
 
@@ -115,6 +159,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
 
     await loadPendingSalesCount();
+    await _refreshConnectionStatus();
   }
 
   Future<void> openSalesHistory() async {
@@ -219,6 +264,52 @@ class _ProductsScreenState extends State<ProductsScreen> {
             const Text(
               'Quick Actions',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _isOnline ? Colors.green.shade50 : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                        size: 16,
+                        color: _isOnline ? Colors.green.shade700 : Colors.orange.shade800,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isOnline ? 'Online mode' : 'Offline mode',
+                        style: TextStyle(
+                          color:
+                              _isOnline ? Colors.green.shade800 : Colors.orange.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Check connection',
+                  onPressed: _isCheckingConnection ? null : _refreshConnectionStatus,
+                  icon: _isCheckingConnection
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             buildActionButton(

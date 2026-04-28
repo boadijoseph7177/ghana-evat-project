@@ -176,4 +176,16 @@ class ApiService {
     final data = jsonDecode(response.body);
     return DashboardSummary.fromJson(data);
   }
+
+  Future<bool> isBackendReachable() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/products'), headers: baseHeaders)
+          .timeout(const Duration(seconds: 3));
+
+      return response.statusCode >= 200 && response.statusCode < 500;
+    } catch (_) {
+      return false;
+    }
+  }
 }
