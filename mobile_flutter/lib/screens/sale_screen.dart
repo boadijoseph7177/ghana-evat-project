@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../models/pending_sale.dart';
@@ -7,6 +8,7 @@ import '../models/sale_request.dart';
 import '../models/sale_response.dart';
 import '../services/api_service.dart';
 import '../services/local_db_service.dart';
+import '../utils/ghana_tin_validator.dart';
 import 'receipt_screen.dart';
 
 class SaleScreen extends StatefulWidget {
@@ -74,6 +76,8 @@ class _SaleScreenState extends State<SaleScreen> {
 
   Future<void> submitSale() async {
     final quantity = int.tryParse(quantityController.text);
+    final customerName = customerNameController.text.trim();
+    final customerTin = GhanaTinValidator.normalize(customerTinController.text);
 
     if (quantity == null || quantity <= 0) {
       ScaffoldMessenger.of(
@@ -89,13 +93,24 @@ class _SaleScreenState extends State<SaleScreen> {
       return;
     }
 
-    if (customerNameController.text.trim().isEmpty ||
-        customerTinController.text.trim().isEmpty) {
+    if (customerName.isEmpty || customerTin.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Customer name and TIN are required')),
       );
       return;
     }
+
+    if (!GhanaTinValidator.isValidBusinessTin(customerTin)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(GhanaTinValidator.formatHint)),
+      );
+      return;
+    }
+
+    customerTinController.value = customerTinController.value.copyWith(
+      text: customerTin,
+      selection: TextSelection.collapsed(offset: customerTin.length),
+    );
 
     setState(() {
       isLoading = true;
@@ -105,8 +120,8 @@ class _SaleScreenState extends State<SaleScreen> {
       final saleRequest = SaleRequest(
         productId: widget.product.id,
         quantity: quantity,
-        customerName: customerNameController.text.trim(),
-        customerTin: customerTinController.text.trim(),
+        customerName: customerName,
+        customerTin: customerTin,
       );
 
       final SaleResponse response = await apiService.createSale(saleRequest);
@@ -143,8 +158,8 @@ class _SaleScreenState extends State<SaleScreen> {
         agentName: agentName,
         productId: widget.product.id,
         quantity: quantity,
-        customerName: customerNameController.text.trim(),
-        customerTin: customerTinController.text.trim(),
+        customerName: customerName,
+        customerTin: customerTin,
         status: 'pending',
         createdAt: DateTime.now().toIso8601String(),
       );
@@ -294,10 +309,28 @@ class _SaleScreenState extends State<SaleScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: customerTinController,
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  return newValue.copyWith(
+                    text: newValue.text.toUpperCase(),
+                    selection: newValue.selection,
+                  );
+                }),
+              ],
               decoration: const InputDecoration(
                 labelText: 'Customer TIN',
                 prefixIcon: Icon(Icons.badge_outlined),
                 border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              GhanaTinValidator.formatHint,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade700,
               ),
             ),
             const SizedBox(height: 20),

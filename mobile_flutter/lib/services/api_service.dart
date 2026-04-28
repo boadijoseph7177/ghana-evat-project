@@ -26,6 +26,30 @@ class ApiService {
     'X-User-Role': 'agent',
   };
 
+  String _extractErrorMessage(http.Response response, String fallback) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final error = decoded['error'];
+        if (error is String && error.trim().isNotEmpty) {
+          return error;
+        }
+        final message = decoded['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message;
+        }
+      }
+    } catch (_) {
+      // Fall back to the raw response body below.
+    }
+
+    if (response.body.trim().isNotEmpty) {
+      return response.body;
+    }
+
+    return fallback;
+  }
+
   // =========================
   // PRODUCTS
   // =========================
@@ -59,9 +83,11 @@ class ApiService {
     );
 
     if (response.statusCode != 201) {
-      throw Exception(
-        'Failed to create sale: ${response.statusCode} ${response.body}',
+      final message = _extractErrorMessage(
+        response,
+        'Failed to create sale',
       );
+      throw Exception('Failed to create sale: $message');
     }
 
     final data = jsonDecode(response.body);
@@ -108,7 +134,11 @@ class ApiService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to sync sales: ${response.body}');
+      final message = _extractErrorMessage(
+        response,
+        'Failed to sync sales',
+      );
+      throw Exception('Failed to sync sales: $message');
     }
   }
 
