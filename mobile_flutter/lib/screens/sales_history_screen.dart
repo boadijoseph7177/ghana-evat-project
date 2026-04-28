@@ -17,6 +17,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   final ApiService apiService = ApiService();
 
   late Future<List<SaleRecord>> salesFuture;
+  String _statusFilter = 'all';
 
   @override
   void initState() {
@@ -29,12 +30,36 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   }
 
   String formatMoney(double amount) {
-    return amount.toStringAsFixed(2);
+    final formatter = NumberFormat.currency(
+      locale: 'en_GH',
+      symbol: 'GHS ',
+      decimalDigits: 2,
+    );
+    return formatter.format(amount);
   }
 
   String formatDate(String rawDate) {
-    final dateTime = DateTime.parse(rawDate).toLocal();
-    return DateFormat('MMM d, yyyy • h:mm a').format(dateTime);
+    if (rawDate.trim().isEmpty) return 'Unknown date';
+    try {
+      final dateTime = DateTime.parse(rawDate).toLocal();
+      return DateFormat('MMM d, yyyy • h:mm a').format(dateTime);
+    } catch (_) {
+      return rawDate;
+    }
+  }
+
+  bool isSyncedToCompliance(SaleRecord sale) {
+    return sale.sdcId.trim().isNotEmpty || sale.qrCode.trim().isNotEmpty;
+  }
+
+  List<SaleRecord> applyStatusFilter(List<SaleRecord> sales) {
+    if (_statusFilter == 'synced') {
+      return sales.where(isSyncedToCompliance).toList();
+    }
+    if (_statusFilter == 'pending') {
+      return sales.where((sale) => !isSyncedToCompliance(sale)).toList();
+    }
+    return sales;
   }
 
   @override
@@ -60,6 +85,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           }
 
           final sales = snapshot.data ?? [];
+          final filteredSales = applyStatusFilter(sales);
 
           if (sales.isEmpty) {
             return const EmptyStateWidget(
@@ -76,39 +102,108 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
               });
               await salesFuture;
             },
-            child: ListView.builder(
-              itemCount: sales.length,
-              itemBuilder: (context, index) {
-                final sale = sales[index];
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  child: ListTile(
-                    title: Text(sale.customerName),
-                    subtitle: Text(
-                      '${sale.productName} • Qty: ${sale.quantity}\n'
-                      'Total: GHS ${formatMoney(sale.totalWithTax)}\n'
-                      'Date: ${formatDate(sale.createdAt)}',
+            child: ListView(
+              padding: const EdgeInsets.all(12),
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('All'),
+                      selected: _statusFilter == 'all',
+                      onSelected: (_) => setState(() => _statusFilter = 'all'),
                     ),
-                    isThreeLine: true,
-                    trailing: Text(
-                      'GHS ${formatMoney(sale.totalWithTax)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ChoiceChip(
+                      label: const Text('Synced'),
+                      selected: _statusFilter == 'synced',
+                      onSelected: (_) => setState(() => _statusFilter = 'synced'),
                     ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SaleDetailScreen(sale: sale),
+                    ChoiceChip(
+                      label: const Text('Pending Sync'),
+                      selected: _statusFilter == 'pending',
+                      onSelected: (_) => setState(() => _statusFilter = 'pending'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (filteredSales.isEmpty)
+                  const EmptyStateWidget(
+                    icon: Icons.filter_alt_off,
+                    title: 'No matching sales',
+                    subtitle: 'Try changing the selected status filter.',
+                  )
+                else
+                  ...filteredSales.map((sale) {
+                    final synced = isSyncedToCompliance(sale);
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
                         ),
-                      );
-                    },
-                  ),
-                );
-              },
+                        title: Text(
+                          sale.customerName.trim().isEmpty
+                              ? 'Walk-in customer'
+                              : sale.customerName,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${sale.productName} • Qty: ${sale.quantity}'),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Chip(
+                                    visualDensity: VisualDensity.compact,
+                                    label: Text(
+                                      synced ? 'Synced' : 'Pending sync',
+                                      style: TextStyle(
+                                        color: synced
+                                            ? Colors.green.shade800
+                                            : Colors.orange.shade800,
+                                      ),
+                                    ),
+                                    avatar: Icon(
+                                      synced ? Icons.cloud_done : Icons.cloud_off,
+                                      size: 16,
+                                      color: synced
+                                          ? Colors.green.shade700
+                                          : Colors.orange.shade700,
+                                    ),
+                                    backgroundColor: synced
+                                        ? Colors.green.shade50
+                                        : Colors.orange.shade50,
+                                  ),
+                                  Text(formatDate(sale.createdAt)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        trailing: Text(
+                          formatMoney(sale.totalWithTax),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SaleDetailScreen(sale: sale),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  }),
+              ],
             ),
           );
         },

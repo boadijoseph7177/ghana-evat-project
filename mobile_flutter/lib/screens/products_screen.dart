@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/product.dart';
 import '../services/api_service.dart';
@@ -130,6 +131,113 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  String formatMoney(double amount) {
+    final formatter = NumberFormat.currency(
+      locale: 'en_GH',
+      symbol: 'GHS ',
+      decimalDigits: 2,
+    );
+    return formatter.format(amount);
+  }
+
+  Widget buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    String? badgeText,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: onPressed,
+            icon: Icon(icon),
+            label: Text(label),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              alignment: Alignment.centerLeft,
+            ),
+          ),
+        ),
+        if (badgeText != null)
+          Positioned(
+            right: -4,
+            top: -6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red.shade600,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                badgeText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget buildQuickActionsCard() {
+    final pendingBadge = _pendingSalesCount > 0
+        ? (_pendingSalesCount > 99 ? '99+' : _pendingSalesCount.toString())
+        : null;
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quick Actions',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            buildActionButton(
+              icon: Icons.download_rounded,
+              label: 'Download Allocation',
+              onPressed: downloadAllocation,
+            ),
+            const SizedBox(height: 8),
+            buildActionButton(
+              icon: Icons.inventory_2_rounded,
+              label: 'View Allocation',
+              onPressed: openAllocationScreen,
+            ),
+            const SizedBox(height: 8),
+            buildActionButton(
+              icon: Icons.sync_rounded,
+              label: 'Pending Sync Sales',
+              onPressed: openPendingSales,
+              badgeText: pendingBadge,
+            ),
+            const SizedBox(height: 8),
+            buildActionButton(
+              icon: Icons.history_rounded,
+              label: 'Sales Records',
+              onPressed: openSalesHistory,
+            ),
+            const SizedBox(height: 8),
+            buildActionButton(
+              icon: Icons.dashboard_rounded,
+              label: 'Dashboard Summary',
+              onPressed: openDashboardSummary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -137,54 +245,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
         title: Text(_isOfflineMode ? 'Products (Offline)' : 'Products'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: downloadAllocation,
-          ),
-          IconButton(
-            icon: const Icon(Icons.inventory),
-            onPressed: openAllocationScreen,
-          ),
-          IconButton(
+            tooltip: 'Pending Sync Sales',
             onPressed: openPendingSales,
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.sync),
-                if (_pendingSalesCount > 0)
-                  Positioned(
-                    right: -6,
-                    top: -6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Text(
-                        _pendingSalesCount > 9 ? '9+' : '$_pendingSalesCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
+            icon: Badge.count(
+              count: _pendingSalesCount,
+              isLabelVisible: _pendingSalesCount > 0,
+              child: const Icon(Icons.sync_rounded),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: openSalesHistory,
-          ),
-          IconButton(
-            icon: const Icon(Icons.dashboard),
-            onPressed: openDashboardSummary,
           ),
         ],
       ),
@@ -208,6 +275,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ],
               ),
             ),
+          buildQuickActionsCard(),
           Expanded(
             child: FutureBuilder<List<Product>>(
               future: productsFuture,
@@ -254,9 +322,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       child: ListTile(
                         title: Text(product.name),
                         subtitle: Text(
-                          '${product.bottleSizeLiters}L • Stock: ${product.stockQuantity} • Price: GHS ${product.unitPrice}',
+                          '${product.bottleSizeLiters}L • Stock: ${product.stockQuantity} • Price: ${formatMoney(product.unitPrice)}',
                         ),
                         trailing: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
                           onPressed: () async {
                             final result = await Navigator.push(
                               context,
