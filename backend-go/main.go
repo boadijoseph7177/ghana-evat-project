@@ -35,6 +35,10 @@ func main() {
 		log.Fatal("database connection failed:", err)
 	}
 
+	if err := db.RunMigrations(dbConn, "migrations"); err != nil {
+		log.Fatal("migration failed:", err)
+	}
+
 	productionRepo := repositories.NewProductionRepository(dbConn)
 	productionService := services.NewProductionService(productionRepo)
 	productionHandler := handlers.NewProductionHandler(productionService)

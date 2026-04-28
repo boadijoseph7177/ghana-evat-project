@@ -1,8 +1,12 @@
 package services
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
 
 	"evat-backend/backend-go/models"
 	"evat-backend/backend-go/repositories"
@@ -45,6 +49,40 @@ func (s *SyncSalesService) SyncSales(req models.SyncSalesRequest) error {
 	return nil
 }
 
+func (s *SyncSalesService) issueInvoiceWithMockGRA(req models.GRAIssueInvoiceRequest) (models.GRAIssueInvoiceResponse, error) {
+	var graRes models.GRAIssueInvoiceResponse
+
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		return graRes, err
+	}
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Post(
+		"http://localhost:8081/issue-invoice",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return graRes, fmt.Errorf("failed to call mock GRA API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return graRes, fmt.Errorf("mock GRA API returned status %d", resp.StatusCode)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&graRes)
+	if err != nil {
+		return graRes, err
+	}
+
+	return graRes, nil
+}
+
 func (s *SyncSalesService) syncSingleSale(agentName string, sale models.SyncSaleItemRequest) error {
 	if sale.OfflineSaleID == "" {
 		return fmt.Errorf("offline_sale_id is required")
@@ -79,10 +117,16 @@ func (s *SyncSalesService) syncSingleSale(agentName string, sale models.SyncSale
 	}
 
 	totalAmount := float64(sale.Quantity) * unitPrice
-	vatAmount := totalAmount * 0.15
-	nhilAmount := totalAmount * 0.025
-	getfundAmount := totalAmount * 0.025
-	totalWithTax := totalAmount + vatAmount + nhilAmount + getfundAmount
+	graReq := models.GRAIssueInvoiceRequest{
+		InvoiceID:   fmt.Sprintf("SYNC-%s", sale.OfflineSaleID),
+		BaseAmount:  totalAmount,
+		CustomerTIN: sale.CustomerTIN,
+	}
+
+	graRes, err := s.issueInvoiceWithMockGRA(graReq)
+	if err != nil {
+		return err
+	}
 
 	tx, err := s.DB.Begin()
 	if err != nil {
@@ -102,21 +146,25 @@ func (s *SyncSalesService) syncSingleSale(agentName string, sale models.SyncSale
 			total_with_tax,
 			customer_name,
 			customer_tin,
-			offline_sale_id
+			offline_sale_id,
+			sdc_id,
+			qr_code
 		)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 	`,
 		sale.ProductID,
 		sale.Quantity,
 		unitPrice,
 		totalAmount,
-		vatAmount,
-		nhilAmount,
-		getfundAmount,
-		totalWithTax,
+		graRes.VATAmount,
+		graRes.NHILAmount,
+		graRes.GETFundAmount,
+		graRes.TotalWithTax,
 		sale.CustomerName,
 		sale.CustomerTIN,
 		sale.OfflineSaleID,
+		graRes.SDCID,
+		graRes.QRCode,
 	)
 	if err != nil {
 		return err
