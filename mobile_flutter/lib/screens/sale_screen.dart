@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/pending_sale.dart';
 import '../models/product.dart';
@@ -28,6 +29,22 @@ class _SaleScreenState extends State<SaleScreen> {
   final String agentName = 'agent1';
 
   bool isLoading = false;
+
+  String formatMoney(double amount) {
+    final formatter = NumberFormat.currency(
+      locale: 'en_GH',
+      symbol: 'GHS ',
+      decimalDigits: 2,
+    );
+    return formatter.format(amount);
+  }
+
+  String formatBottleSize(double liters) {
+    if (liters == liters.roundToDouble()) {
+      return '${liters.toStringAsFixed(0)}L';
+    }
+    return '${liters.toStringAsFixed(1)}L';
+  }
 
   @override
   void initState() {
@@ -170,16 +187,98 @@ class _SaleScreenState extends State<SaleScreen> {
       appBar: AppBar(title: Text('Sell ${widget.product.name}')),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: ListView(
           children: [
-            Text('Price: GHS ${widget.product.unitPrice}'),
-            Text('Available Stock: ${widget.product.stockQuantity}'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.product.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      formatBottleSize(widget.product.bottleSizeLiters),
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Unit Price',
+                                  style: TextStyle(color: Colors.grey.shade700),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  formatMoney(widget.product.unitPrice),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Available Stock',
+                                  style: TextStyle(color: Colors.grey.shade700),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${widget.product.stockQuantity}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: quantityController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Quantity',
+                prefixIcon: Icon(Icons.numbers_rounded),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -188,6 +287,7 @@ class _SaleScreenState extends State<SaleScreen> {
               controller: customerNameController,
               decoration: const InputDecoration(
                 labelText: 'Customer Name',
+                prefixIcon: Icon(Icons.person_outline_rounded),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -196,6 +296,7 @@ class _SaleScreenState extends State<SaleScreen> {
               controller: customerTinController,
               decoration: const InputDecoration(
                 labelText: 'Customer TIN',
+                prefixIcon: Icon(Icons.badge_outlined),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -203,6 +304,9 @@ class _SaleScreenState extends State<SaleScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
                 onPressed: isLoading ? null : submitSale,
                 child: isLoading
                     ? const SizedBox(

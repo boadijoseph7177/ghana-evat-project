@@ -140,6 +140,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
     return formatter.format(amount);
   }
 
+  String formatBottleSize(double liters) {
+    if (liters == liters.roundToDouble()) {
+      return '${liters.toStringAsFixed(0)}L';
+    }
+    return '${liters.toStringAsFixed(1)}L';
+  }
+
+  Color getStockColor(int stockQuantity) {
+    if (stockQuantity <= 0) return Colors.red.shade700;
+    if (stockQuantity <= 10) return Colors.orange.shade700;
+    return Colors.green.shade700;
+  }
+
+  String getStockLabel(int stockQuantity) {
+    if (stockQuantity <= 0) return 'Out of stock';
+    if (stockQuantity <= 10) return 'Low stock';
+    return 'In stock';
+  }
+
   Widget buildActionButton({
     required IconData icon,
     required String label,
@@ -238,6 +257,167 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  Widget buildProductStatChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    Color? backgroundColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildProductCard(Product product) {
+    final stockColor = getStockColor(product.stockQuantity);
+    final canSell = product.stockQuantity > 0;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.local_drink_rounded,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formatBottleSize(product.bottleSizeLiters),
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      formatMoney(product.unitPrice),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'per unit',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                buildProductStatChip(
+                  icon: Icons.inventory_2_rounded,
+                  label: 'Stock: ${product.stockQuantity}',
+                  color: stockColor,
+                ),
+                buildProductStatChip(
+                  icon: Icons.info_outline_rounded,
+                  label: getStockLabel(product.stockQuantity),
+                  color: stockColor,
+                ),
+                if (_isOfflineMode)
+                  buildProductStatChip(
+                    icon: Icons.cloud_off_rounded,
+                    label: 'Offline allocation',
+                    color: Colors.orange.shade800,
+                    backgroundColor: Colors.orange.shade50,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: canSell
+                    ? () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SaleScreen(product: product),
+                          ),
+                        );
+
+                        if (result == 'online_success' ||
+                            result == 'offline_saved') {
+                          setState(() {
+                            loadProducts();
+                          });
+
+                          await loadPendingSalesCount();
+                        }
+                      }
+                    : null,
+                icon: Icon(canSell ? Icons.point_of_sale_rounded : Icons.block),
+                label: Text(canSell ? 'Sell Product' : 'Unavailable'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -313,45 +493,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      child: ListTile(
-                        title: Text(product.name),
-                        subtitle: Text(
-                          '${product.bottleSizeLiters}L • Stock: ${product.stockQuantity} • Price: ${formatMoney(product.unitPrice)}',
-                        ),
-                        trailing: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                          onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => SaleScreen(product: product),
-                              ),
-                            );
-
-                            if (result == 'online_success' ||
-                                result == 'offline_saved') {
-                              setState(() {
-                                loadProducts();
-                              });
-
-                              await loadPendingSalesCount();
-                            }
-                          },
-                          child: const Text('Sell'),
-                        ),
-                      ),
-                    );
+                    return buildProductCard(product);
                   },
                 );
               },
