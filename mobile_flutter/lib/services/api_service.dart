@@ -123,7 +123,12 @@ class ApiService {
       throw Exception('Failed to load sales history: ${response.body}');
     }
 
-    final List<dynamic> data = jsonDecode(response.body);
+    final decoded = jsonDecode(response.body);
+    if (decoded == null) {
+      return [];
+    }
+
+    final List<dynamic> data = decoded as List<dynamic>;
     return data.map((item) => SaleRecord.fromJson(item)).toList();
   }
 
