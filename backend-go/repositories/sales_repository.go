@@ -132,7 +132,9 @@ func (r *SalesRepository) GetAllSales() ([]models.SaleRecord, error) {
 			s.getfund_amount,
 			s.total_with_tax,
 			s.customer_name,
-			s.created_at
+			s.created_at,
+			s.sdc_id,
+			s.qr_code
 		FROM sales s
 		INNER JOIN products p ON s.product_id = p.id
 		ORDER BY s.created_at DESC
@@ -159,6 +161,8 @@ func (r *SalesRepository) GetAllSales() ([]models.SaleRecord, error) {
 			&s.TotalWithTax,
 			&s.CustomerName,
 			&s.CreatedAt,
+			&s.SDCID,
+			&s.QRCode,
 		)
 		if err != nil {
 			return nil, err
