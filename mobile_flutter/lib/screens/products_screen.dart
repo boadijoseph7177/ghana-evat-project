@@ -79,6 +79,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
       final allocation = await apiService.getAllocation(agentName);
       await localDbService.saveAllocationItems(allocation.items);
 
+      try {
+        final products = await apiService.getProducts();
+        await localDbService.saveProducts(products);
+      } catch (_) {
+        // Allocation responses from the current backend include product details,
+        // so offline sales can still work even if this extra cache refresh fails.
+      }
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
