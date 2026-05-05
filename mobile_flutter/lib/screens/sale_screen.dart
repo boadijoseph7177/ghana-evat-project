@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../models/pending_sale.dart';
 import '../models/product.dart';
@@ -6,6 +8,7 @@ import '../models/sale_request.dart';
 import '../models/sale_response.dart';
 import '../services/api_service.dart';
 import '../services/local_db_service.dart';
+import '../utils/ghana_tin_validator.dart';
 import 'receipt_screen.dart';
 
 class SaleScreen extends StatefulWidget {
@@ -28,11 +31,30 @@ class _SaleScreenState extends State<SaleScreen> {
   final String agentName = 'agent1';
 
   bool isLoading = false;
+  bool _isOnline = true;
+  bool _isCheckingConnection = false;
+
+  String formatMoney(double amount) {
+    final formatter = NumberFormat.currency(
+      locale: 'en_GH',
+      symbol: 'GHS ',
+      decimalDigits: 2,
+    );
+    return formatter.format(amount);
+  }
+
+  String formatBottleSize(double liters) {
+    if (liters == liters.roundToDouble()) {
+      return '${liters.toStringAsFixed(0)}L';
+    }
+    return '${liters.toStringAsFixed(1)}L';
+  }
 
   @override
   void initState() {
     super.initState();
     _initLocalDb();
+    _refreshConnectionStatus();
   }
 
   Future<void> _initLocalDb() async {
@@ -40,6 +62,30 @@ class _SaleScreenState extends State<SaleScreen> {
       await localDbService.database;
     } catch (e) {
       debugPrint('Local DB init failed: $e');
+    }
+  }
+
+  Future<void> _refreshConnectionStatus() async {
+    if (_isCheckingConnection) return;
+
+    setState(() {
+      _isCheckingConnection = true;
+    });
+
+    try {
+      final reachable = await apiService.isBackendReachable();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isOnline = reachable;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingConnection = false;
+        });
+      }
     }
   }
 
@@ -57,6 +103,8 @@ class _SaleScreenState extends State<SaleScreen> {
 
   Future<void> submitSale() async {
     final quantity = int.tryParse(quantityController.text);
+    final customerName = customerNameController.text.trim();
+    final customerTin = GhanaTinValidator.normalize(customerTinController.text);
 
     if (quantity == null || quantity <= 0) {
       ScaffoldMessenger.of(
@@ -72,13 +120,24 @@ class _SaleScreenState extends State<SaleScreen> {
       return;
     }
 
-    if (customerNameController.text.trim().isEmpty ||
-        customerTinController.text.trim().isEmpty) {
+    if (customerName.isEmpty || customerTin.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Customer name and TIN are required')),
       );
       return;
     }
+
+    if (!GhanaTinValidator.isValidBusinessTin(customerTin)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(GhanaTinValidator.formatHint)),
+      );
+      return;
+    }
+
+    customerTinController.value = customerTinController.value.copyWith(
+      text: customerTin,
+      selection: TextSelection.collapsed(offset: customerTin.length),
+    );
 
     setState(() {
       isLoading = true;
@@ -88,8 +147,8 @@ class _SaleScreenState extends State<SaleScreen> {
       final saleRequest = SaleRequest(
         productId: widget.product.id,
         quantity: quantity,
-        customerName: customerNameController.text.trim(),
-        customerTin: customerTinController.text.trim(),
+        customerName: customerName,
+        customerTin: customerTin,
       );
 
       final SaleResponse response = await apiService.createSale(saleRequest);
@@ -126,8 +185,8 @@ class _SaleScreenState extends State<SaleScreen> {
         agentName: agentName,
         productId: widget.product.id,
         quantity: quantity,
-        customerName: customerNameController.text.trim(),
-        customerTin: customerTinController.text.trim(),
+        customerName: customerName,
+        customerTin: customerTin,
         status: 'pending',
         createdAt: DateTime.now().toIso8601String(),
       );
@@ -170,16 +229,144 @@ class _SaleScreenState extends State<SaleScreen> {
       appBar: AppBar(title: Text('Sell ${widget.product.name}')),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: ListView(
           children: [
-            Text('Price: GHS ${widget.product.unitPrice}'),
-            Text('Available Stock: ${widget.product.stockQuantity}'),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _isOnline ? Colors.green.shade50 : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                        size: 16,
+                        color: _isOnline ? Colors.green.shade700 : Colors.orange.shade800,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isOnline ? 'Online mode' : 'Offline mode',
+                        style: TextStyle(
+                          color:
+                              _isOnline ? Colors.green.shade800 : Colors.orange.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Check connection',
+                  onPressed: _isCheckingConnection ? null : _refreshConnectionStatus,
+                  icon: _isCheckingConnection
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.product.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      formatBottleSize(widget.product.bottleSizeLiters),
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Unit Price',
+                                  style: TextStyle(color: Colors.grey.shade700),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  formatMoney(widget.product.unitPrice),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Available Stock',
+                                  style: TextStyle(color: Colors.grey.shade700),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${widget.product.stockQuantity}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: quantityController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Quantity',
+                prefixIcon: Icon(Icons.numbers_rounded),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -188,21 +375,44 @@ class _SaleScreenState extends State<SaleScreen> {
               controller: customerNameController,
               decoration: const InputDecoration(
                 labelText: 'Customer Name',
+                prefixIcon: Icon(Icons.person_outline_rounded),
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: customerTinController,
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  return newValue.copyWith(
+                    text: newValue.text.toUpperCase(),
+                    selection: newValue.selection,
+                  );
+                }),
+              ],
               decoration: const InputDecoration(
                 labelText: 'Customer TIN',
+                prefixIcon: Icon(Icons.badge_outlined),
                 border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              GhanaTinValidator.formatHint,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade700,
               ),
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
                 onPressed: isLoading ? null : submitSale,
                 child: isLoading
                     ? const SizedBox(

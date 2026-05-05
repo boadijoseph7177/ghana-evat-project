@@ -92,12 +92,15 @@ func (s *SalesService) RecordSale(req models.CreateSaleRequest) (models.SaleResp
 		req.ProductID,
 		req.Quantity,
 		req.CustomerName,
+		req.CustomerTIN,
 		unitPrice,
 		totalAmount,
 		graRes.VATAmount,
 		graRes.NHILAmount,
 		graRes.GETFundAmount,
 		graRes.TotalWithTax,
+		graRes.SDCID,
+		graRes.QRCode,
 	)
 	if err != nil {
 		return models.SaleResponse{}, err

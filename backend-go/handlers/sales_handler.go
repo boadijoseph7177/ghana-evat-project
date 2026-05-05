@@ -59,6 +59,10 @@ func (h *SalesHandler) GetSales(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sales == nil {
+		sales = []models.SaleRecord{}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(sales)
 }

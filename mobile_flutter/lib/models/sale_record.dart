@@ -11,6 +11,8 @@ class SaleRecord {
   final double totalWithTax;
   final String customerName;
   final String createdAt;
+  final String sdcId;
+  final String qrCode;
 
   SaleRecord({
     required this.id,
@@ -25,22 +27,39 @@ class SaleRecord {
     required this.totalWithTax,
     required this.customerName,
     required this.createdAt,
+    required this.sdcId,
+    required this.qrCode,
   });
+
+  static double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
 
   factory SaleRecord.fromJson(Map<String, dynamic> json) {
     return SaleRecord(
-      id: json['id'],
-      productId: json['product_id'],
-      productName: json['product_name'],
-      quantity: json['quantity'],
-      unitPrice: (json['unit_price'] as num).toDouble(),
-      totalAmount: (json['total_amount'] as num).toDouble(),
-      vatAmount: (json['vat_amount'] as num).toDouble(),
-      nhilAmount: (json['nhil_amount'] as num).toDouble(),
-      getfundAmount: (json['getfund_amount'] as num).toDouble(),
-      totalWithTax: (json['total_with_tax'] as num).toDouble(),
-      customerName: json['customer_name'],
-      createdAt: json['created_at'],
+      id: _asInt(json['id']),
+      productId: _asInt(json['product_id']),
+      productName: json['product_name'] ?? '',
+      quantity: _asInt(json['quantity']),
+      unitPrice: _asDouble(json['unit_price']),
+      totalAmount: _asDouble(json['total_amount']),
+      vatAmount: _asDouble(json['vat_amount']),
+      nhilAmount: _asDouble(json['nhil_amount']),
+      getfundAmount: _asDouble(json['getfund_amount']),
+      totalWithTax: _asDouble(json['total_with_tax']),
+      customerName: json['customer_name'] ?? '',
+      createdAt: json['created_at'] ?? '',
+      sdcId: json['sdc_id'] ?? '',
+      qrCode: json['qr_code'] ?? '',
     );
   }
 }
