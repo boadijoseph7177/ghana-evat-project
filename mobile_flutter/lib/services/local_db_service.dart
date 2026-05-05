@@ -77,11 +77,24 @@ class LocalDbService {
   Future<void> saveAllocationItems(List<AllocationItem> items) async {
     final db = await database;
 
-    await db.delete('allocation_items');
+    await db.transaction((txn) async {
+      await txn.delete('allocation_items');
 
-    for (final item in items) {
-      await db.insert('allocation_items', item.toMap());
-    }
+      for (final item in items) {
+        await txn.insert('allocation_items', item.toMap());
+
+        if (item.productName != null &&
+            item.bottleSizeLiters != null &&
+            item.unitPrice != null) {
+          await txn.insert('local_products', {
+            'id': item.productId,
+            'name': item.productName,
+            'bottle_size_liters': item.bottleSizeLiters,
+            'unit_price': item.unitPrice,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      }
+    });
   }
 
   Future<List<AllocationItem>> getAllocationItems() async {

@@ -1,12 +1,18 @@
 class AllocationItem {
   final int id;
   final int productId;
+  final String? productName;
+  final double? bottleSizeLiters;
+  final double? unitPrice;
   final int allocatedQuantity;
   final int remainingQuantity;
 
   AllocationItem({
     required this.id,
     required this.productId,
+    this.productName,
+    this.bottleSizeLiters,
+    this.unitPrice,
     required this.allocatedQuantity,
     required this.remainingQuantity,
   });
@@ -15,6 +21,9 @@ class AllocationItem {
     return AllocationItem(
       id: json['id'],
       productId: json['product_id'],
+      productName: json['product_name'],
+      bottleSizeLiters: (json['bottle_size_liters'] as num?)?.toDouble(),
+      unitPrice: (json['unit_price'] as num?)?.toDouble(),
       allocatedQuantity: json['allocated_quantity'],
       remainingQuantity: json['remaining_quantity'],
     );
