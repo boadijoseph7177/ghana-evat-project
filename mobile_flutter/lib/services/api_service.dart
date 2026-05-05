@@ -11,8 +11,15 @@ import '../models/sale_record.dart';
 import '../models/dashboard_summary.dart';
 
 class ApiService {
+  static const Duration requestTimeout = Duration(seconds: 8);
+
   // For Chrome (web)
   static String get baseUrl {
+    const configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
+    if (configuredBaseUrl.isNotEmpty) {
+      return configuredBaseUrl;
+    }
+
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8080';
     }
@@ -55,10 +62,9 @@ class ApiService {
   // =========================
 
   Future<List<Product>> getProducts() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/products'),
-      headers: baseHeaders,
-    );
+    final response = await http
+        .get(Uri.parse('$baseUrl/products'), headers: baseHeaders)
+        .timeout(requestTimeout);
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -76,11 +82,13 @@ class ApiService {
   // =========================
 
   Future<SaleResponse> createSale(SaleRequest saleRequest) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/sales'),
-      headers: baseHeaders,
-      body: jsonEncode(saleRequest.toJson()),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/sales'),
+          headers: baseHeaders,
+          body: jsonEncode(saleRequest.toJson()),
+        )
+        .timeout(requestTimeout);
 
     if (response.statusCode != 201) {
       final message = _extractErrorMessage(
@@ -100,10 +108,12 @@ class ApiService {
   // =========================
 
   Future<AgentAllocation> getAllocation(String agentName) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/allocations?agent_name=$agentName'),
-      headers: baseHeaders,
-    );
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/allocations?agent_name=$agentName'),
+          headers: baseHeaders,
+        )
+        .timeout(requestTimeout);
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -124,14 +134,16 @@ class ApiService {
     required String agentName,
     required List<PendingSale> sales,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/sync-sales'),
-      headers: baseHeaders,
-      body: jsonEncode({
-        'agent_name': agentName,
-        'sales': sales.map((sale) => sale.toSyncJson()).toList(),
-      }),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/sync-sales'),
+          headers: baseHeaders,
+          body: jsonEncode({
+            'agent_name': agentName,
+            'sales': sales.map((sale) => sale.toSyncJson()).toList(),
+          }),
+        )
+        .timeout(requestTimeout);
 
     if (response.statusCode != 200) {
       final message = _extractErrorMessage(
@@ -144,10 +156,12 @@ class ApiService {
 
   // Sales record
   Future<List<SaleRecord>> getSalesHistory() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/sales'),
-      headers: {'Content-Type': 'application/json', 'X-User-Role': 'admin'},
-    );
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/sales'),
+          headers: {'Content-Type': 'application/json', 'X-User-Role': 'admin'},
+        )
+        .timeout(requestTimeout);
 
     if (response.statusCode != 200) {
       throw Exception('Failed to load sales history: ${response.body}');
@@ -164,10 +178,12 @@ class ApiService {
 
   // dashboard summary
   Future<DashboardSummary> getDashboardSummary() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/dashboard-summary'),
-      headers: {'Content-Type': 'application/json', 'X-User-Role': 'admin'},
-    );
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/dashboard-summary'),
+          headers: {'Content-Type': 'application/json', 'X-User-Role': 'admin'},
+        )
+        .timeout(requestTimeout);
 
     if (response.statusCode != 200) {
       throw Exception('Failed to load dashboard summary: ${response.body}');
