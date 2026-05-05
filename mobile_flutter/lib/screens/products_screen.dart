@@ -95,6 +95,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
 
     try {
+      final wasOnline = _isOnline;
       final reachable = await apiService.isBackendReachable();
 
       if (!mounted) return;
@@ -102,6 +103,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
       setState(() {
         _isOnline = reachable;
       });
+
+      // If connectivity was restored, refresh products so all UI sections
+      // switch back to online data/state together.
+      if (!wasOnline && reachable && mounted) {
+        setState(() {
+          loadProducts();
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -160,6 +169,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     await loadPendingSalesCount();
     await _refreshConnectionStatus();
+    if (!mounted) return;
+    setState(() {
+      loadProducts();
+    });
   }
 
   Future<void> openSalesHistory() async {
@@ -380,6 +393,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget buildProductCard(Product product) {
     final stockColor = getStockColor(product.stockQuantity);
     final canSell = product.stockQuantity > 0;
+    final showOfflineAllocationTag = _isOfflineMode && !_isOnline;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -464,7 +478,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   label: getStockLabel(product.stockQuantity),
                   color: stockColor,
                 ),
-                if (_isOfflineMode)
+                if (showOfflineAllocationTag)
                   buildProductStatChip(
                     icon: Icons.cloud_off_rounded,
                     label: 'Offline allocation',
