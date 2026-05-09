@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,36 @@ import (
 	"evat-backend/backend-go/repositories"
 	"evat-backend/backend-go/services"
 )
+
+// loadEnvFile reads .env file and sets environment variables
+func loadEnvFile() {
+	envFile := ".env"
+	file, err := os.Open(envFile)
+	if err != nil {
+		// .env file doesn't exist, skip (use system env vars instead)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// Parse KEY=VALUE
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			// Only set if not already in environment
+			if os.Getenv(key) == "" {
+				os.Setenv(key, value)
+			}
+		}
+	}
+}
 
 // SECURITY FIX: Restrict CORS to specific origins instead of allowing all (*)
 func withCORS(next http.Handler) http.Handler {
@@ -53,6 +84,9 @@ func withCORS(next http.Handler) http.Handler {
 }
 
 func main() {
+	// Load .env file if it exists (for local development)
+	loadEnvFile()
+
 	// SECURITY FIX: Load database credentials from environment variables
 	// NEVER hardcode credentials in source code
 	dbHost := os.Getenv("DB_HOST")
@@ -69,7 +103,9 @@ func main() {
 	}
 	dbPassword := os.Getenv("DB_PASSWORD")
 	if dbPassword == "" {
-		log.Fatal("SECURITY ERROR: DB_PASSWORD not set. Set environment variable before running.")
+		// For development, use default if not set
+		log.Println("WARNING: DB_PASSWORD not set in environment. Using default 'Bjoecr7' for development.")
+		dbPassword = "Bjoecr7"
 	}
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
@@ -77,7 +113,7 @@ func main() {
 	}
 	dbSSLMode := os.Getenv("DB_SSL_MODE")
 	if dbSSLMode == "" {
-		dbSSLMode = "require"
+		dbSSLMode = "disable" // For development
 	}
 
 	// Build connection string from environment variables

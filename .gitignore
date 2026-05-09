@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/flutter,go,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=flutter,go,visualstudiocode
-
+.env
+.env.local
+.env.*.local
 ### Flutter ###
 # Flutter/Dart/Pub related
 **/doc/api/
