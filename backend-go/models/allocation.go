@@ -18,8 +18,11 @@ type AgentAllocation struct {
 }
 
 type AgentAllocationItem struct {
-	ID                int `json:"id"`
-	ProductID         int `json:"product_id"`
-	AllocatedQuantity int `json:"allocated_quantity"`
-	RemainingQuantity int `json:"remaining_quantity"`
+	ID                int     `json:"id"`
+	ProductID         int     `json:"product_id"`
+	ProductName       string  `json:"product_name"`
+	BottleSizeLiters  float64 `json:"bottle_size_liters"`
+	UnitPrice         float64 `json:"unit_price"`
+	AllocatedQuantity int     `json:"allocated_quantity"`
+	RemainingQuantity int     `json:"remaining_quantity"`
 }

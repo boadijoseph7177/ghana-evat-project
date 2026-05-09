@@ -72,10 +72,18 @@ func (r *AllocationRepository) GetActiveAllocationByAgent(agentName string) (mod
 	}
 
 	rows, err := r.DB.Query(`
-		SELECT id, product_id, allocated_quantity, remaining_quantity
-		FROM agent_allocation_items
-		WHERE allocation_id = $1
-		ORDER BY id
+		SELECT
+			aai.id,
+			aai.product_id,
+			p.name,
+			p.bottle_size_liters,
+			p.unit_price,
+			aai.allocated_quantity,
+			aai.remaining_quantity
+		FROM agent_allocation_items aai
+		INNER JOIN products p ON p.id = aai.product_id
+		WHERE aai.allocation_id = $1
+		ORDER BY aai.id
 	`, allocation.ID)
 	if err != nil {
 		return allocation, err
@@ -89,6 +97,9 @@ func (r *AllocationRepository) GetActiveAllocationByAgent(agentName string) (mod
 		err := rows.Scan(
 			&item.ID,
 			&item.ProductID,
+			&item.ProductName,
+			&item.BottleSizeLiters,
+			&item.UnitPrice,
 			&item.AllocatedQuantity,
 			&item.RemainingQuantity,
 		)
