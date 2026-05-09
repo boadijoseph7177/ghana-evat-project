@@ -1,36 +1,48 @@
 // App Configuration - DO NOT commit with real credentials or sensitive data
 // This file should be gitignored and configured per environment
 
-const apiConfig = {
+class ApiEnvironment {
+  final String baseUrl;
+  final Duration timeout;
+  final Duration connectivityTimeout;
+
+  const ApiEnvironment({
+    required this.baseUrl,
+    required this.timeout,
+    required this.connectivityTimeout,
+  });
+}
+
+class ApiConfig {
   // Development environment
-  development: {
+  static const ApiEnvironment development = ApiEnvironment(
     baseUrl: 'http://localhost:8080',
-    timeout: const Duration(seconds: 30),
-    connectivityTimeout: const Duration(seconds: 5),
-  },
+    timeout: Duration(seconds: 30),
+    connectivityTimeout: Duration(seconds: 5),
+  );
 
   // Production environment (HTTPS and secured backend)
-  production: {
+  static const ApiEnvironment production = ApiEnvironment(
     baseUrl:
         'https://api.evat.example.com', // CHANGE THIS TO YOUR PRODUCTION URL
-    timeout: const Duration(seconds: 30),
-    connectivityTimeout: const Duration(seconds: 5),
-  },
+    timeout: Duration(seconds: 30),
+    connectivityTimeout: Duration(seconds: 5),
+  );
 
   // Staging environment
-  staging: {
+  static const ApiEnvironment staging = ApiEnvironment(
     baseUrl: 'https://staging-api.evat.example.com',
-    timeout: const Duration(seconds: 30),
-    connectivityTimeout: const Duration(seconds: 5),
-  },
-};
+    timeout: Duration(seconds: 30),
+    connectivityTimeout: Duration(seconds: 5),
+  );
 
-// Get current environment
-// In production, this should read from build configuration
-String getCurrentEnvironment() {
-  // For now, use platform detection
-  // In production, use flutter_dotenv or build-time configuration
-  return 'development';
+  // Get current environment
+  // In production, this should read from build configuration
+  static ApiEnvironment getCurrentEnvironment() {
+    // For now, use development as default
+    // In production, use flutter_dotenv or build-time configuration
+    return development;
+  }
 }
 
 // Security: Token management

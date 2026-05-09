@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'dart:io';
 
-import 'screens/splash_screen.dart';
+import 'screens/products_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
