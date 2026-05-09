@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"evat-backend/backend-go/db"
 	"evat-backend/backend-go/handlers"
@@ -12,11 +14,34 @@ import (
 	"evat-backend/backend-go/services"
 )
 
+// SECURITY FIX: Restrict CORS to specific origins instead of allowing all (*)
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// SECURITY: Get allowed origins from environment variable
+		allowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+		if allowedOrigins == "" {
+			// Default to localhost for development (should be configured in production)
+			allowedOrigins = "http://localhost:3000,http://localhost:8080"
+		}
+
+		// SECURITY: Check if request origin is in allowed list
+		requestOrigin := r.Header.Get("Origin")
+		origins := strings.Split(allowedOrigins, ",")
+		isAllowed := false
+		for _, origin := range origins {
+			if strings.TrimSpace(origin) == requestOrigin {
+				isAllowed = true
+				break
+			}
+		}
+
+		// SECURITY: Only set CORS headers if origin is allowed
+		if isAllowed {
+			w.Header().Set("Access-Control-Allow-Origin", requestOrigin)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-User-Role")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-User-Role, Authorization")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
@@ -28,7 +53,38 @@ func withCORS(next http.Handler) http.Handler {
 }
 
 func main() {
-	connStr := "host=localhost port=5433 user=postgres password=Bjoecr7 dbname=evat_db sslmode=disable"
+	// SECURITY FIX: Load database credentials from environment variables
+	// NEVER hardcode credentials in source code
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = "5433"
+	}
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		log.Fatal("SECURITY ERROR: DB_PASSWORD not set. Set environment variable before running.")
+	}
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "evat_db"
+	}
+	dbSSLMode := os.Getenv("DB_SSL_MODE")
+	if dbSSLMode == "" {
+		dbSSLMode = "require"
+	}
+
+	// Build connection string from environment variables
+	connStr := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		dbHost, dbPort, dbUser, dbPassword, dbName, dbSSLMode,
+	)
 
 	dbConn, err := db.InitDB(connStr)
 	if err != nil {
