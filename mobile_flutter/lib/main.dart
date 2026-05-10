@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
 
-import 'screens/products_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,7 +53,7 @@ class EvatApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const ProductsScreen(),
+      home: const SplashScreen(),
     );
   }
 }

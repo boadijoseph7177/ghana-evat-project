@@ -3,7 +3,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:mobile_flutter/main.dart';
+import 'package:evat_app/main.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -34,19 +34,148 @@ class _DashboardSummaryScreenState extends State<DashboardSummaryScreen> {
     return amount.toStringAsFixed(2);
   }
 
+  // Simple clean summary card
   Widget buildSummaryCard({
     required String title,
     required String value,
-    IconData? icon,
+    required IconData icon,
   }) {
     return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.shade200, width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.green.shade700, size: 28),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Enhanced product card for inventory section
+  Widget buildInventoryCard(Product product) {
+    final maxStock = 100; // Reference for visual progress
+    final stockPercentage = (product.stockQuantity / maxStock).clamp(0.0, 1.0);
+
+    Color statusColor;
+    if (product.stockQuantity > 50) {
+      statusColor = Colors.green;
+    } else if (product.stockQuantity > 20) {
+      statusColor = Colors.orange;
+    } else {
+      statusColor = Colors.red;
+    }
+
+    return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: icon != null ? Icon(icon) : null,
-        title: Text(title),
-        trailing: Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.inventory_2,
+                    color: Colors.blue.shade700,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${product.bottleSizeLiters}L • GHS ${formatMoney(product.unitPrice)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${product.stockQuantity} units',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Stock progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: stockPercentage,
+                minHeight: 6,
+                backgroundColor: Colors.grey.shade300,
+                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -54,26 +183,13 @@ class _DashboardSummaryScreenState extends State<DashboardSummaryScreen> {
 
   Widget buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 12),
+      padding: const EdgeInsets.only(top: 20, bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget buildProductCard(Product product) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: const Icon(Icons.inventory_2),
-        title: Text(product.name),
-        subtitle: Text(
-          '${product.bottleSizeLiters}L • Price: GHS ${formatMoney(product.unitPrice)}',
-        ),
-        trailing: Text(
-          'Stock: ${product.stockQuantity}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.2,
         ),
       ),
     );
@@ -90,7 +206,7 @@ class _DashboardSummaryScreenState extends State<DashboardSummaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard Summary')),
+      appBar: AppBar(title: const Text('Dashboard Summary'), elevation: 0),
       body: RefreshIndicator(
         onRefresh: refreshAll,
         child: FutureBuilder<DashboardSummary>(
@@ -184,7 +300,8 @@ class _DashboardSummaryScreenState extends State<DashboardSummaryScreen> {
                         subtitle: 'Inventory items will appear here.',
                       )
                     else
-                      ...products.map(buildProductCard),
+                      ...products.map(buildInventoryCard),
+                    const SizedBox(height: 20),
                   ],
                 );
               },

@@ -1,5 +1,5 @@
-name: mobile_flutter
-description: "A new Flutter project."
+name: evat_app
+description: "E-VAT Sales App - Ghana Revenue Authority Compliance System for Offline Sales Tracking."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev

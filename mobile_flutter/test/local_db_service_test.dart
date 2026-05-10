@@ -3,8 +3,8 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:mobile_flutter/models/allocation.dart';
-import 'package:mobile_flutter/services/local_db_service.dart';
+import 'package:evat_app/models/allocation.dart';
+import 'package:evat_app/services/local_db_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
