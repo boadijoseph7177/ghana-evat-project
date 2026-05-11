@@ -33,7 +33,25 @@ func (r *AllocationRepository) CreateAllocation(req models.CreateAllocationReque
 	}
 
 	for _, item := range req.Items {
-		_, err := tx.Exec(`
+		result, err := tx.Exec(`
+			UPDATE products
+			SET stock_quantity = stock_quantity - $1,
+			    updated_at = CURRENT_TIMESTAMP
+			WHERE id = $2 AND stock_quantity >= $1
+		`, item.AllocatedQuantity, item.ProductID)
+		if err != nil {
+			return err
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffected == 0 {
+			return fmt.Errorf("product %d not found or insufficient stock", item.ProductID)
+		}
+
+		_, err = tx.Exec(`
 			INSERT INTO agent_allocation_items (
 				allocation_id,
 				product_id,
