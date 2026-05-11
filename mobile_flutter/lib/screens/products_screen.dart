@@ -42,6 +42,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
     productsFuture = loadProductsWithFallback();
   }
 
+  Future<List<Product>> loadOfflineProducts() async {
+    final offlineProducts = await localDbService.getOfflineProducts();
+
+    if (mounted) {
+      setState(() {
+        _isOfflineMode = true;
+        _isOnline = false;
+      });
+    } else {
+      _isOfflineMode = true;
+      _isOnline = false;
+    }
+
+    return offlineProducts;
+  }
+
   Future<List<Product>> loadProductsWithFallback() async {
     try {
       final products = await apiService.getProducts();
@@ -103,6 +119,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
       setState(() {
         _isOnline = reachable;
       });
+
+      if (!reachable && mounted) {
+        setState(() {
+          _isOfflineMode = true;
+          productsFuture = loadOfflineProducts();
+        });
+        return;
+      }
 
       // If connectivity was restored, refresh products so all UI sections
       // switch back to online data/state together.
@@ -295,23 +319,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: _isOnline ? Colors.green.shade50 : Colors.orange.shade50,
+                    color: _isOnline
+                        ? Colors.green.shade50
+                        : Colors.orange.shade50,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        _isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                        _isOnline
+                            ? Icons.cloud_done_rounded
+                            : Icons.cloud_off_rounded,
                         size: 16,
-                        color: _isOnline ? Colors.green.shade700 : Colors.orange.shade800,
+                        color: _isOnline
+                            ? Colors.green.shade700
+                            : Colors.orange.shade800,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         _isOnline ? 'Online mode' : 'Offline mode',
                         style: TextStyle(
-                          color:
-                              _isOnline ? Colors.green.shade800 : Colors.orange.shade900,
+                          color: _isOnline
+                              ? Colors.green.shade800
+                              : Colors.orange.shade900,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -321,7 +352,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 const Spacer(),
                 IconButton(
                   tooltip: 'Check connection',
-                  onPressed: _isCheckingConnection ? null : _refreshConnectionStatus,
+                  onPressed: _isCheckingConnection
+                      ? null
+                      : _refreshConnectionStatus,
                   icon: _isCheckingConnection
                       ? const SizedBox(
                           width: 18,
@@ -388,10 +421,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.w600),
           ),
         ],
       ),
